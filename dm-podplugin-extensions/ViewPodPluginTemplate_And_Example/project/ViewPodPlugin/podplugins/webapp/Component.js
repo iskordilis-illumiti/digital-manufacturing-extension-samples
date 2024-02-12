@@ -1,11 +1,11 @@
 sap.ui.define([
     "sap/ui/core/UIComponent",
     "sap/ui/Device",
-    "vendor/ext/viewplugins/model/models"
+    "illumiti/ext/viewplugins/model/models"
 ], function (UIComponent, Device, models) {
     "use strict";
 
-    return UIComponent.extend("vendor.ext.viewplugins.Component", {
+    return UIComponent.extend("illumiti.ext.viewplugins.Component", {
 
         metadata: {
             manifest: "json"

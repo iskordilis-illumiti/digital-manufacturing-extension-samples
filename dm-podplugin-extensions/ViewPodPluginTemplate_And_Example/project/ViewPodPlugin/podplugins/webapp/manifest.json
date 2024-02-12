@@ -1,7 +1,7 @@
 {
     "_version": "1.12.0",
     "sap.app": {
-        "id": "vendor.ext.viewplugins",
+        "id": "illumiti.ext.viewplugins",
         "type": "application",
         "i18n": "i18n/i18n.properties",
         "applicationVersion": {
@@ -33,7 +33,7 @@
     "sap.ui5": {
         "flexEnabled": false,
         "rootView": {
-            "viewName": "vendor.ext.viewplugins.view.MainView",
+            "viewName": "illumiti.ext.viewplugins.view.MainView",
             "type": "XML",
             "async": true,
             "id": "MainView"
@@ -54,7 +54,7 @@
             "i18n": {
                 "type": "sap.ui.model.resource.ResourceModel",
                 "settings": {
-                    "bundleName": "vendor.ext.viewplugins.i18n.i18n"
+                    "bundleName": "illumiti.ext.viewplugins.i18n.i18n"
                 }
             }
         },
@@ -68,7 +68,7 @@
                 "routerClass": "sap.m.routing.Router",
                 "viewType": "XML",
                 "async": true,
-                "viewPath": "vendor.ext.viewplugins.view",
+                "viewPath": "illumiti.ext.viewplugins.view",
                 "controlAggregation": "pages",
                 "controlId": "app",
                 "clearControlAggregation": false

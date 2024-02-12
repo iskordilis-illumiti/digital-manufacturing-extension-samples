@@ -7,7 +7,7 @@ sap.ui.define([
     function (Controller) {
         "use strict";
 
-        return Controller.extend("vendor.ext.viewplugins.controller.MainView", {
+        return Controller.extend("illumiti.ext.viewplugins.controller.MainView", {
             onInit: function () {
 
             }

@@ -12,7 +12,7 @@ sap.ui.define([
      * any the notification messages received from the back end microservice. 
      * Also plugin shows how to call public API to read material custom fields. 
      */
-    var Component = ProductionUIComponent.extend("vendor.ext.viewplugins.exampleViewPlugin.Component", {
+    var Component = ProductionUIComponent.extend("illumiti.ext.viewplugins.exampleViewPlugin.Component", {
         metadata : {
             manifest : "json"
         }

@@ -3,12 +3,12 @@ sap.ui.define([
 ], function (PropertyEditor) {
     "use strict";
 
-    var oPropertyEditor = PropertyEditor.extend("vendor.ext.viewplugins.exampleViewPlugin.builder.PropertyEditor", {
+    var oPropertyEditor = PropertyEditor.extend("illumiti.ext.viewplugins.exampleViewPlugin.builder.PropertyEditor", {
         constructor: function (sId, mSettings) {
             PropertyEditor.apply(this, arguments);
             this.setI18nKeyPrefix("exampleViewPlugin.");
-            this.setResourceBundleName("vendor.ext.viewplugins.exampleViewPlugin.i18n.builder");
-            this.setPluginResourceBundleName("vendor.ext.viewplugins.exampleViewPlugin.i18n.i18n");
+            this.setResourceBundleName("illumiti.ext.viewplugins.exampleViewPlugin.i18n.builder");
+            this.setPluginResourceBundleName("illumiti.ext.viewplugins.exampleViewPlugin.i18n.i18n");
         },
 
         addPropertyEditorContent: function (oPropertyFormContainer) {

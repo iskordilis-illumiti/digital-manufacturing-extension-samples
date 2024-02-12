@@ -7,7 +7,7 @@ sap.ui.define([
 
     var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO);
     
-    var oPluginViewController = PluginViewController.extend("vendor.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
+    var oPluginViewController = PluginViewController.extend("illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
         metadata: {
             properties: {
             }

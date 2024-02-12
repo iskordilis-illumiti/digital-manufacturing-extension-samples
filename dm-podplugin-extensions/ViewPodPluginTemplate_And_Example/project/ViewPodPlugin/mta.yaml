@@ -2,7 +2,7 @@ _schema-version: '3.2'
 ID: ExampleViewPluginsMTA
 version: 0.0.1
 modules:
- - name: vendor-viewplugin
+ - name: illumiti-viewplugin
    type: html5
    path: podplugins
    parameters:
@@ -12,7 +12,7 @@ modules:
         httpHeaders:
         - X-Frame-Options: deny
         CORS: "[{\"uriPattern\": \"^/podplugins/(.*)$\",\"allowedOrigin\": [
-               {\"host\": \"<DMC_HOST1>\",\"protocol\": \"https\"},
+               {\"host\": \"illumiti-dmc-1-vl2m06ky.test.execution.us10.dmc.cloud.sap\",\"protocol\": \"https\"},
                {\"host\": \"<DMC_HOST2>\",\"protocol\": \"https\"}],
                \"allowedMethods\": [\"GET\",\"OPTIONS\"],
                \"allowedHeaders\":[\"Origin\", \"Accept\",\"X-Requested-With\",\"Content-Type\",

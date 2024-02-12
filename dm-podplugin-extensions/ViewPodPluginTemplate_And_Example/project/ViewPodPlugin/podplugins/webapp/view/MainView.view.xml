@@ -1,4 +1,4 @@
-<mvc:View controllerName="vendor.ext.viewplugins.controller.MainView"
+<mvc:View controllerName="illumiti.ext.viewplugins.controller.MainView"
     displayBlock="true"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns:l="sap.ui.layout"

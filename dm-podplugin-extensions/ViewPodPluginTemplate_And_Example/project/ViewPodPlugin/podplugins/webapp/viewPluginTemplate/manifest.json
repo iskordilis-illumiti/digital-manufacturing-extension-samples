@@ -1,6 +1,6 @@
 {
     "sap.app": {
-        "id": "vendor.ext.viewplugins.viewPluginTemplate",
+        "id": "illumiti.ext.viewplugins.viewPluginTemplate",
         "type": "component",
         "applicationVersion": {
             "version": "1.0.0"
@@ -10,7 +10,7 @@
 
     "sap.ui5": {
         "rootView": {
-            "viewName": "vendor.ext.viewplugins.viewPluginTemplate.view.PluginView",
+            "viewName": "illumiti.ext.viewplugins.viewPluginTemplate.view.PluginView",
             "type": "XML",
             "id": "viewPluginTemplate"
         },
@@ -23,7 +23,7 @@
             "i18n": {
                 "type": "sap.ui.model.resource.ResourceModel",
                 "settings": {
-                    "bundleName": "vendor.ext.viewplugins.viewPluginTemplate.i18n.i18n"
+                    "bundleName": "illumiti.ext.viewplugins.viewPluginTemplate.i18n.i18n"
                 }
             }
         }
