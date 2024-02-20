@@ -24,11 +24,14 @@ sap.ui.define([
          */
         onBeforeRenderingPlugin: function () {
             // subscribe on POD events
+            //OnPodSelectionChangeEvent , onOperationChangeEvent, onWorkListChangeEvent add other events if needed
+            //-----------------------------------
             this.subscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this);
             this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
             this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
             var oConfig = this.getConfiguration();
             // check if close icon should be displayed
+            //Configured in the POD Designer 
             this.configureNavigationButtons(oConfig); 
         },
 
@@ -50,6 +53,7 @@ sap.ui.define([
         },
 
         onPodSelectionChangeEvent: function (sChannelId, sEventId, oData) {
+
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -59,6 +63,7 @@ sap.ui.define([
         },
 
         onOperationChangeEvent: function (sChannelId, sEventId, oData) {
+            oLogger.info("onOperationChangeEvent: " + JSON.stringify(oData));
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -66,33 +71,48 @@ sap.ui.define([
 
             this.loadModel();
         },
-
+        // When Worklist selection event fires , get all the info needed by the plugin
+        //calling the this.loadModel() function
+        //We need to extract the operation from the oData
+        
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
             }
-
+            
             this.loadModel();
         },
+        onStartOrder: function ( ){
+            console.log('Button Pressed!');
 
+        },
+
+        // The loadModel aggregates all the current information in the POD and 
+        // set this model as the view model
         loadModel: function () {
+            //get the view in oView
             var oView = this.getView();
+            // get the PodController in oPodController
             var oPodController = this.getPodController();
+            //get configuration as set in the POD designer 
             var oConfiguration = this.getConfiguration();
             var bNotificationsEnabled = true;
             // if notification is enabled
             if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") {
                 bNotificationsEnabled = oConfiguration.notificationsEnabled;
             }
-
+            
+            //get the podSelectionModel in oPodSelectionModel
             var oPodSelectionModel = this.getPodSelectionModel();
             if (!oPodSelectionModel) {
                 oView.setModel(new JSONModel());
                 return;
-            }
+            }   
+                //get the pod type in sPodType
             var sPodType = oPodSelectionModel.getPodType();
             var sResource;
+            //get the Resource in sResource
             var oResourceData = oPodSelectionModel.getResource();
             if (oResourceData) {
                 sResource = oResourceData.getResource();
@@ -100,8 +120,10 @@ sap.ui.define([
             var iSelectionCount = 0;
             var aInputs = [];
             var sInput, sSfc, sMaterial, sShopOrder;
+            //get the selections in aSelections
             var aSelections = oPodSelectionModel.getSelections();
             if (aSelections && aSelections.length > 0) {
+                //loop through all the selections and extract info in sInput ,sSfc , sMaterial,sShopOrder
                 for (var i = 0; i < aSelections.length; i++) {
                     sInput = aSelections[i].getInput();
                     if (sInput && sInput !== "") {
@@ -116,6 +138,10 @@ sap.ui.define([
                         sShopOrder = "";
                         if (aSelections[i].getShopOrder()) {
                             sShopOrder = aSelections[i].getShopOrder().getShopOrder();
+                            // Store shop order in selectedOrder will be used in Model and the View
+                            //Only store the first order selected , ignore the others in multiselection
+                            //Situation.
+                           
                         }
                         aInputs[aInputs.length] = {
                             input: sInput,
@@ -127,12 +153,14 @@ sap.ui.define([
                 }
                 iSelectionCount = aInputs.length;
             }
+            //TODO remove the customfields for this Lutron Plugin
 
             var iOperationCount = 0;
             var aOperations = [];
             var aMaterialCustomFields = [];
             var sOperation;
             var oOperations = oPodSelectionModel.getOperations();
+            //get all the operation this will not get anything in the Worklist page
             if (oOperations && oOperations.length > 0) {
                 for (var i = 0; i < oOperations.length; i++) {
                     sOperation = oOperations[i].operation;
@@ -145,7 +173,7 @@ sap.ui.define([
                 }
                 iOperationCount = aOperations.length;
             }
-
+            // Create the Model in oModelData
             var oModelData = {
                 podType: sPodType,
                 inputType: oPodSelectionModel.getInputType(),
@@ -155,6 +183,7 @@ sap.ui.define([
                 selectionCount: iSelectionCount,
                 operationCount: iOperationCount,
                 selections: aInputs,
+                orderselect:sShopOrder,
                 operations: aOperations,
                 notificationsEnabled: bNotificationsEnabled,
                 notificationMessage: "",
@@ -165,10 +194,10 @@ sap.ui.define([
                 oModelData.operation = aOperations[0].operation;
             }
             // add material custom fields to model
-            this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
-            //oLogger.info("oModel: " + JSON.stringify(oModelData));
+            //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
+            oLogger.info("oModel: " + JSON.stringify(oModelData));
             var oModel = new JSONModel(oModelData);
-
+            // Set the model for the View with the gathered info
             oView.setModel(oModel);
         },
 
@@ -217,13 +246,14 @@ sap.ui.define([
             }
             this.getView().getModel().setProperty("/notificationMessage", sMessage);
         },
-
+        //TODO remove this API call for the Lutron Plugin
         addMaterialCustomFields: function (sPlant, sMaterial) {
             // Populate parameters with plant and material name 
             var oParameters = {
                 plant: sPlant,
                 material: sMaterial
             };
+            //TODO generalize this to be reusubale for the HTTP get (generize overall)
             var sUrl = this.getPublicApiRestDataSourceUri() + "/material/v1/materials";
             // Ajax GET request to read Material custom fields by using Public API 
             this.executeAjaxGetRequest(sUrl, oParameters);           

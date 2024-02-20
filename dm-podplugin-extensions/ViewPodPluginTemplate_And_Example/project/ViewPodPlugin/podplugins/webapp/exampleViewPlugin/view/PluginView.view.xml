@@ -52,6 +52,16 @@
                             <Label id="selectionCount" text="{/selectionCount}" width="100%" />
                         </items>
                     </HBox>
+                    <!-- The StartOrder Controls-->
+                    <HBox width="100%">
+                        <items>
+                            <Label id="orderTypeLable" text="Order" class="sapUiTinyMarginEnd"/>
+                            <Input id="OrderTypeInput"  value="{/orderselect}" class="sapUiTinyMarginEnd"/>
+                            <Button  id="OrderStartType" text="Start Order" press=".onStartOrder" class="sapUiTinyMarginEnd"/>
+                        </items>
+
+                    </HBox>
+                    <!-- End The StartOrder Controls-->
                     <Table
                         id="selectionsTable"
                         backgroundDesign="Solid"
