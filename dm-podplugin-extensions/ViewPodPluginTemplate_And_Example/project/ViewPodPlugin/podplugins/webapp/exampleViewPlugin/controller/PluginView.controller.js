@@ -86,6 +86,13 @@ sap.ui.define([
         onStartOrder: function ( ){
             console.log('Button Pressed!');
             MessageBox.information("Button was pressed");
+            //for the URL for geting the order 
+            //Need generalization so we dont have to form the URL everytime
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/v1/orders";
+            console.log(sUrl);
+            MessagBox.information(sUrl);
+            
+
 
         },
 
