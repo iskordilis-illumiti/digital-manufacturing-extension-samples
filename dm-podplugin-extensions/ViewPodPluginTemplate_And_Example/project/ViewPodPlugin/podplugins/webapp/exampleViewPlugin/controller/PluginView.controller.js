@@ -85,6 +85,7 @@ sap.ui.define([
         },
         onStartOrder: function ( ){
             console.log('Button Pressed!');
+            MessageBox.information("Button wasclickd");
 
         },
 
