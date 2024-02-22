@@ -1,11 +1,14 @@
-sap.ui.define([
+sap.ui.define([ 
     "sap/ui/model/json/JSONModel",
     "sap/dm/dme/podfoundation/controller/PluginViewController",
     "sap/base/Log"
-], function (JSONModel, PluginViewController, Log) {
+], function (JSONModel, PluginViewController, Log) { 
     "use strict";
 
-    var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO);
+    var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO); 
+    // add a oselect to receive the selected operation when the worklist selection changes
+    // this will be global in this context
+    var oselect={};
     
     var oPluginViewController = PluginViewController.extend("illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
         metadata: {
@@ -13,7 +16,7 @@ sap.ui.define([
             }
         },
 
-        onInit: function () {
+        onInit: function () { 
             if (PluginViewController.prototype.onInit) {
                 PluginViewController.prototype.onInit.apply(this, arguments);
             }
@@ -26,9 +29,9 @@ sap.ui.define([
             // subscribe on POD events
             //OnPodSelectionChangeEvent , onOperationChangeEvent, onWorkListChangeEvent add other events if needed
             //-----------------------------------
-            this.subscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this);
-            this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
-            this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
+            this.subscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this); 
+            this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this); 
+            this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this); 
             var oConfig = this.getConfiguration();
             // check if close icon should be displayed
             //Configured in the POD Designer 
@@ -62,8 +65,8 @@ sap.ui.define([
             this.loadModel();
         },
 
-        onOperationChangeEvent: function (sChannelId, sEventId, oData) {
-            oLogger.info("onOperationChangeEvent: " + JSON.stringify(oData));
+        onOperationChangeEvent: function (sChannelId, sEventId, oData) { 
+            //oLogger.info("onOperationChangeEvent: " + JSON.stringify(oData));
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -71,30 +74,45 @@ sap.ui.define([
 
             this.loadModel();
         },
+
         // When Worklist selection event fires , get all the info needed by the plugin
         //calling the this.loadModel() function
         //We need to extract the operation from the oData
         
-        onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
+        onWorkListSelectEvent: function (sChannelId, sEventId, oData) { 
+           // if (oData){
+            //    oselect=oData;
+            //}
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
+              
                 return;
             }
             
-            this.loadModel();
+            this.loadModel(); 
         },
-        onStartOrder: function ( ){
-            console.log('Button Pressed!');
-            MessageBox.information("Button was pressed");
+        
+        //----- Lutron Start Order ----------------
+        // The StartOrder button was pressed
+        // We need to start all the sfc's in the order
+        // first call Order API to get all the SFCS for the order
+        // then call start/sfcs to start all the gathered SFCS
+        // -----------------------------------------
+
+        onStartOrder: function (){
+        
+           
             //for the URL for geting the order 
             //Need generalization so we dont have to form the URL everytime
             var sUrl = this.getPublicApiRestDataSourceUri() + "/v1/orders";
-            console.log(sUrl);
-            MessagBox.information(sUrl);
-            
 
+          
+
+           this.loadModel();
 
         },
+          //----  End Lutron Start Order ---------
+
 
         // The loadModel aggregates all the current information in the POD and 
         // set this model as the view model
@@ -151,6 +169,7 @@ sap.ui.define([
                             //Situation.
                            
                         }
+
                         aInputs[aInputs.length] = {
                             input: sInput,
                             sfc: sSfc,
@@ -203,7 +222,7 @@ sap.ui.define([
             }
             // add material custom fields to model
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
-            oLogger.info("oModel: " + JSON.stringify(oModelData));
+            oLogger.info("oModel:-> : " + JSON.stringify(oModelData));
             var oModel = new JSONModel(oModelData);
             // Set the model for the View with the gathered info
             oView.setModel(oModel);
@@ -297,7 +316,7 @@ sap.ui.define([
                 this.byId("closeButton").setVisible(oConfiguration.closeButtonVisible);
             }
         } 
-    });
+    }); 
 
     return oPluginViewController;
 });

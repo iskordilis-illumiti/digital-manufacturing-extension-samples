@@ -1,6 +1,6 @@
 _schema-version: '3.2'
 ID: ExampleViewPluginsMTA
-version: 0.0.1
+version: 0.0.2
 modules:
  - name: illumiti-viewplugin
    type: html5
@@ -25,6 +25,7 @@ modules:
     supported-platforms: [CF]
    requires:
     - name: uaa_ExampleViewPluginsMTA
+    
     - name: dest_ExampleViewPluginsMTA
 resources:
  - name: uaa_ExampleViewPluginsMTA
