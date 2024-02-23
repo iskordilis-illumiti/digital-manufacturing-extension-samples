@@ -7,7 +7,7 @@ sap.ui.define([
 
     var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO); 
     // add a oselect to receive the selected operation when the worklist selection changes
-    // this will be global in this context
+    // this will be global var in this POD context
     var oselect={};
     
     var oPluginViewController = PluginViewController.extend("illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
@@ -38,6 +38,7 @@ sap.ui.define([
             this.configureNavigationButtons(oConfig); 
         },
 
+
         onExit: function () {
             if (PluginViewController.prototype.onExit) {
                 PluginViewController.prototype.onExit.apply(this, arguments);
@@ -53,6 +54,7 @@ sap.ui.define([
         },
 
         onAfterRendering: function () {
+            console.log('after Rendering');
         },
 
         onPodSelectionChangeEvent: function (sChannelId, sEventId, oData) {
@@ -80,18 +82,14 @@ sap.ui.define([
         //We need to extract the operation from the oData
         
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) { 
-           // if (oData){
-            //    oselect=oData;
-            //}
-            // don't process if same object firing event
-            if (this.isEventFiredByThisPlugin(oData)) {
-              
-                return;
-            }
+           oselect=oData;
             
+            // don't process if same object firing event
+            if (this.isEventFiredByThisPlugin(oData)) { 
+                return;
+            }   
             this.loadModel(); 
         },
-        
         //----- Lutron Start Order ----------------
         // The StartOrder button was pressed
         // We need to start all the sfc's in the order
@@ -99,22 +97,41 @@ sap.ui.define([
         // then call start/sfcs to start all the gathered SFCS
         // -----------------------------------------
 
-        onStartOrder: function (){
-        
+        onStartOrder: function (evt){
+            //Set the stage for calling the /order API
+            //get the Order from the input Box
+        //var eOrder=this.getView().byId("OrderTypeInput").getValue();
+        var eOrderLabel=this.getView().byId("OrderValueLabel").getText();
+       //get the plant
+        var ePlant=this.getPodController().getUserPlant();
            
             //for the URL for geting the order 
             //Need generalization so we dont have to form the URL everytime
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/v1/orders";
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/order/v1/orders";
+            oLogger.info("sUrl : "+sUrl);
+            //Set the parameters
+            var oParameters = {
+                order: eOrderLabel,
+                plant: ePlant
+            };
+            oLogger.info("Button Pressed: "+eOrderLabel+"  "+ePlant);
 
-          
-
+            //try to start all sfc's in the order
+            this.ajaxGetRequest(sUrl, oParameters,
+                function (oResponseData) {
+                  oLogger.info("response : "+oResponseData);
+                },
+                function (oError, sHttpErrorMessage) {
+                    oLogger.info("Errors "+sHttpErrorMessage);
+                    
+                });
+  
            this.loadModel();
-
         },
           //----  End Lutron Start Order ---------
 
 
-        // The loadModel aggregates all the current information in the POD and 
+        // The loadModel aggregates all the current information from the POD and 
         // set this model as the view model
         loadModel: function () {
             //get the view in oView

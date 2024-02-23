@@ -56,7 +56,8 @@
                     <HBox width="100%">
                         <items>
                             <Label id="orderTypeLable" text="Order" class="sapUiTinyMarginEnd"/>
-                            <Input id="OrderTypeInput"  value="{/orderselect}" class="sapUiTinyMarginEnd"/>
+                            <!-- <Input id="OrderTypeInput"  value="{/orderselect}" class="sapUiTinyMarginEnd"/> -->
+                            <Label id="OrderValueLabel" text="{/orderselect}" class="sapUiTinyMarginEnd"/>
                             <Button  id="OrderStartType" text="Start Order" press=".onStartOrder" class="sapUiTinyMarginEnd"/>
                         </items>
 
@@ -68,6 +69,7 @@
                         inset="false"
                         width="100%"
                         mode="SingleSelectMaster"
+                         visible="{= ${/podType} === 'WORK_CENTERX'}"
                         items="{
                             path: '/selections'
                         }">
@@ -96,7 +98,7 @@
                             </ColumnListItem>
                         </items>
                     </Table>
-                    <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTER'}">
+                    <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTERX'}">
                         <items>
                             <Label id="operationCountLabel" text="Operations:" class="sapUiTinyMarginEnd"/>
                             <Label id="operationCount" text="{/operationCount}" width="100%" />
@@ -129,7 +131,7 @@
                             </ColumnListItem>
                         </items>
                     </Table>
-                    <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTER'}">
+                    <HBox width="100%" visible="{= ${/podType} === 'XWORK_CENTER'}">
                         <items>
                             <Label id="customFieldsLabel" text="Custom Fields:" class="sapUiTinyMarginEnd"/>
                         </items>
@@ -139,7 +141,7 @@
                         backgroundDesign="Solid"
                         inset="false"
                         width="100%"
-                        visible="{= ${/podType} === 'WORK_CENTER'}"
+                        visible="{= ${/podType} === 'XWORK_CENTER'}"
                         items="{
                             path: '/materialCustomFields'
                         }">
