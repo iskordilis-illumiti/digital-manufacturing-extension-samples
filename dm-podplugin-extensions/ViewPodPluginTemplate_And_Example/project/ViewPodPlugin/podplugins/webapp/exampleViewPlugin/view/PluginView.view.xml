@@ -110,7 +110,7 @@
                         inset="false"
                         width="100%"
                         mode="SingleSelectMaster"
-                        visible="{= ${/podType} === 'WORK_CENTER'}"
+                        visible="{= ${/podType} === 'WORK_CENTERX'}"
                         items="{
                             path: '/operations'
                         }">

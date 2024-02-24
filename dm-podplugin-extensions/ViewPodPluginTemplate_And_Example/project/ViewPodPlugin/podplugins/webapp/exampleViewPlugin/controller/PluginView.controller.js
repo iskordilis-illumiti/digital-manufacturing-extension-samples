@@ -104,9 +104,12 @@ sap.ui.define([
         var eOrderLabel=this.getView().byId("OrderValueLabel").getText();
        //get the plant
         var ePlant=this.getPodController().getUserPlant();
+
            
             //for the URL for geting the order 
             //Need generalization so we dont have to form the URL everytime
+
+            //--- start call sequence - Order -sfc ------------------
             var sUrl = this.getPublicApiRestDataSourceUri() + "/order/v1/orders";
             oLogger.info("sUrl : "+sUrl);
             //Set the parameters
@@ -114,17 +117,48 @@ sap.ui.define([
                 order: eOrderLabel,
                 plant: ePlant
             };
+            
             oLogger.info("Button Pressed: "+eOrderLabel+"  "+ePlant);
-
+            var that=this;
             //try to start all sfc's in the order
             this.ajaxGetRequest(sUrl, oParameters,
                 function (oResponseData) {
-                  oLogger.info("response : "+oResponseData);
+                 // TODO fix all this uneccasary crappy code
+                 var sfcUrl = that.getPublicApiRestDataSourceUri()+"/sfc/v1/sfcs/start?async=false";
+                 var sfcplant=that.getPodController().getUserPlant();
+                 var sfcOperation="ASSEMBLE";
+                 var sfcResource=that.getPodSelectionModel().getResource().getResource();
+                 var sfcSfcs=oResponseData["sfcs"];
+
+
+                 var ssfcParameters={
+                    plant:sfcplant, 
+                    operation:sfcOperation,
+                    quantity:0,
+                    resource:sfcResource,
+                    sfcs:sfcSfcs,
+                    processLot:""
+
+                 }
+                 //TEMP try to make the Object in JSON Format to see if resolves the Bad Request error.
+                 var jsonParams=JSON.stringify(ssfcParameters);
+                 that.ajaxPostRequest( sfcUrl,jsonParams,
+                    function(oResponseData){
+
+                    },
+                    function(oError, sHttpErrorMessage){
+                        oLogger.info("Errors - sfc start  "+sHttpErrorMessage);
+
+                    }
+                    );
+
                 },
-                function (oError, sHttpErrorMessage) {
+                function (oError, sHttpErrorMessage) {  s
                     oLogger.info("Errors "+sHttpErrorMessage);
                     
                 });
+               
+                
   
            this.loadModel();
         },
