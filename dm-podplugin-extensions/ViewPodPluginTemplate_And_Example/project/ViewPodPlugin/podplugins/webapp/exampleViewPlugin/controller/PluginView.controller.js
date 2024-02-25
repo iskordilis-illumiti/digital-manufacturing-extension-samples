@@ -1,22 +1,22 @@
-sap.ui.define([ 
+sap.ui.define([
     "sap/ui/model/json/JSONModel",
     "sap/dm/dme/podfoundation/controller/PluginViewController",
     "sap/base/Log"
-], function (JSONModel, PluginViewController, Log) { 
+], function (JSONModel, PluginViewController, Log) {
     "use strict";
 
-    var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO); 
+    var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO);
     // add a oselect to receive the selected operation when the worklist selection changes
     // this will be global var in this POD context
-    var oselect={};
-    
+    var oselect = {};
+
     var oPluginViewController = PluginViewController.extend("illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
         metadata: {
             properties: {
             }
         },
 
-        onInit: function () { 
+        onInit: function () {
             if (PluginViewController.prototype.onInit) {
                 PluginViewController.prototype.onInit.apply(this, arguments);
             }
@@ -29,13 +29,13 @@ sap.ui.define([
             // subscribe on POD events
             //OnPodSelectionChangeEvent , onOperationChangeEvent, onWorkListChangeEvent add other events if needed
             //-----------------------------------
-            this.subscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this); 
-            this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this); 
-            this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this); 
+            this.subscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this);
+            this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
+            this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
             var oConfig = this.getConfiguration();
             // check if close icon should be displayed
             //Configured in the POD Designer 
-            this.configureNavigationButtons(oConfig); 
+            this.configureNavigationButtons(oConfig);
         },
 
 
@@ -67,7 +67,7 @@ sap.ui.define([
             this.loadModel();
         },
 
-        onOperationChangeEvent: function (sChannelId, sEventId, oData) { 
+        onOperationChangeEvent: function (sChannelId, sEventId, oData) {
             //oLogger.info("onOperationChangeEvent: " + JSON.stringify(oData));
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
@@ -80,15 +80,15 @@ sap.ui.define([
         // When Worklist selection event fires , get all the info needed by the plugin
         //calling the this.loadModel() function
         //We need to extract the operation from the oData
-        
-        onWorkListSelectEvent: function (sChannelId, sEventId, oData) { 
-           oselect=oData;
-            
+
+        onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
+            oselect = oData;
+
             // don't process if same object firing event
-            if (this.isEventFiredByThisPlugin(oData)) { 
+            if (this.isEventFiredByThisPlugin(oData)) {
                 return;
-            }   
-            this.loadModel(); 
+            }
+            this.loadModel();
         },
         //----- Lutron Start Order ----------------
         // The StartOrder button was pressed
@@ -97,76 +97,89 @@ sap.ui.define([
         // then call start/sfcs to start all the gathered SFCS
         // -----------------------------------------
 
-        onStartOrder: function (evt){
-            //Set the stage for calling the /order API
-            //get the Order from the input Box
-        //var eOrder=this.getView().byId("OrderTypeInput").getValue();
-        var eOrderLabel=this.getView().byId("OrderValueLabel").getText();
-       //get the plant
-        var ePlant=this.getPodController().getUserPlant();
+        onStartOrder: function (evt) {
 
-           
+            //get the Order from the input Box
+            //var eOrder=this.getView().byId("OrderTypeInput").getValue();
+            var eOrderLabel = this.getView().byId("OrderValueLabel").getText();
+            //get the plant
+            var ePlant = this.getPodController().getUserPlant();
+
+
             //for the URL for geting the order 
             //Need generalization so we dont have to form the URL everytime
 
             //--- start call sequence - Order -sfc ------------------
             var sUrl = this.getPublicApiRestDataSourceUri() + "/order/v1/orders";
-            oLogger.info("sUrl : "+sUrl);
+            oLogger.info("sUrl : " + sUrl);
             //Set the parameters
             var oParameters = {
                 order: eOrderLabel,
                 plant: ePlant
             };
-            
-            oLogger.info("Button Pressed: "+eOrderLabel+"  "+ePlant);
-            var that=this;
+
+
+            var that = this;
             //try to start all sfc's in the order
-            this.ajaxGetRequest(sUrl, oParameters,
+            this.ajaxGetRequest(
+                sUrl,
+                oParameters,
                 function (oResponseData) {
-                 // TODO fix all this uneccasary crappy code
-                 var sfcUrl = that.getPublicApiRestDataSourceUri()+"/sfc/v1/sfcs/start?async=false";
-                 var sfcplant=that.getPodController().getUserPlant();
-                 var sfcOperation="ASSEMBLE";
-                 var sfcResource=that.getPodSelectionModel().getResource().getResource();
-                 var sfcSfcs=oResponseData["sfcs"];
+
+                    var sfcUrl = that.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
+                    var sfcplant = that.getPodController().getUserPlant();
+                    var sfcOperation = "ASSEMBLE";
+                    var sfcResource = that.getPodSelectionModel().getResource().getResource();
+                    var sfcSfcs = oResponseData["sfcs"];
 
 
-                 var ssfcParameters={
-                    plant:sfcplant, 
-                    operation:sfcOperation,
-                    quantity:0,
-                    resource:sfcResource,
-                    sfcs:sfcSfcs,
-                    processLot:""
-
-                 }
-                 //TEMP try to make the Object in JSON Format to see if resolves the Bad Request error.
-                 var jsonParams=JSON.stringify(ssfcParameters);
-                 that.ajaxPostRequest( sfcUrl,jsonParams,
-                    function(oResponseData){
-
-                    },
-                    function(oError, sHttpErrorMessage){
-                        oLogger.info("Errors - sfc start  "+sHttpErrorMessage);
+                    var ssfcParameters = {
+                        plant: sfcplant,
+                        operation: sfcOperation,
+                        quantity: 1, //find the quantity 
+                        resource: sfcResource,
+                        sfcs: sfcSfcs //,
+                        // processLot:""
 
                     }
-                    );
+                    //TEMP try to make the Object in JSON Format to see if resolves the Bad Request error.
+                    //This did not work so is removed
+                    //var jsonParams=JSON.stringify(ssfcParameters);
+
+                    that.ajaxPostRequest(
+                        sfcUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            oLogger.info("sfcs start success");
+
+                        },
+                        //The error call back for the /sfc/sfcs/start API call
+                        function (oError, sHttpErrorMessage) {
+                            oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
+
+                        }
+                    ); //close parenthesis for the Post call (sfs/sfcs/start)
 
                 },
-                function (oError, sHttpErrorMessage) {  s
-                    oLogger.info("Errors "+sHttpErrorMessage);
-                    
+                //the error callback for the /Order API call
+                function (oError, sHttpErrorMessage) {
+                    s
+                    oLogger.info("Errors " + sHttpErrorMessage);
+
                 });
-               
-                
-  
-           this.loadModel();
+
+
+
+            this.loadModel();
         },
-          //----  End Lutron Start Order ---------
+        //----  End Lutron Start Order ---------
 
-
+        //---------------------------------------------
+        // loadModel
         // The loadModel aggregates all the current information from the POD and 
         // set this model as the view model
+        //-------------------------------------------
+
         loadModel: function () {
             //get the view in oView
             var oView = this.getView();
@@ -179,14 +192,14 @@ sap.ui.define([
             if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") {
                 bNotificationsEnabled = oConfiguration.notificationsEnabled;
             }
-            
+
             //get the podSelectionModel in oPodSelectionModel
             var oPodSelectionModel = this.getPodSelectionModel();
             if (!oPodSelectionModel) {
                 oView.setModel(new JSONModel());
                 return;
-            }   
-                //get the pod type in sPodType
+            }
+            //get the pod type in sPodType
             var sPodType = oPodSelectionModel.getPodType();
             var sResource;
             //get the Resource in sResource
@@ -218,7 +231,7 @@ sap.ui.define([
                             // Store shop order in selectedOrder will be used in Model and the View
                             //Only store the first order selected , ignore the others in multiselection
                             //Situation.
-                           
+
                         }
 
                         aInputs[aInputs.length] = {
@@ -261,7 +274,7 @@ sap.ui.define([
                 selectionCount: iSelectionCount,
                 operationCount: iOperationCount,
                 selections: aInputs,
-                orderselect:sShopOrder,
+                orderselect: sShopOrder,
                 operations: aOperations,
                 notificationsEnabled: bNotificationsEnabled,
                 notificationMessage: "",
@@ -334,7 +347,7 @@ sap.ui.define([
             //TODO generalize this to be reusubale for the HTTP get (generize overall)
             var sUrl = this.getPublicApiRestDataSourceUri() + "/material/v1/materials";
             // Ajax GET request to read Material custom fields by using Public API 
-            this.executeAjaxGetRequest(sUrl, oParameters);           
+            this.executeAjaxGetRequest(sUrl, oParameters);
         },
 
         executeAjaxGetRequest: function (sUrl, oParameters) {
@@ -349,7 +362,7 @@ sap.ui.define([
             );
         },
 
-        handleResponse: function (oResponseData) {            
+        handleResponse: function (oResponseData) {
             if (oResponseData && oResponseData.length > 0) {
                 // set customValues data to model property "materialCustomFields"    
                 this.getView().getModel().setProperty("/materialCustomFields", oResponseData[0].customValues);
@@ -361,13 +374,13 @@ sap.ui.define([
             // show error in message toast   
             this.showErrorMessage(err, true, true);
         },
-        
+
         configureNavigationButtons: function (oConfiguration) {
             if (!this.isPopup() && !this.isDefaultPlugin()) {
                 this.byId("closeButton").setVisible(oConfiguration.closeButtonVisible);
             }
-        } 
-    }); 
+        }
+    });
 
     return oPluginViewController;
 });
