@@ -58,7 +58,8 @@
                             <Label id="orderTypeLable" text="Order" class="sapUiTinyMarginEnd"/>
                             <!-- <Input id="OrderTypeInput"  value="{/orderselect}" class="sapUiTinyMarginEnd"/> -->
                             <Label id="OrderValueLabel" text="{/orderselect}" class="sapUiTinyMarginEnd"/>
-                            <Button  id="OrderStartType" text="Start Order" press=".onStartOrder" class="sapUiTinyMarginEnd"/>
+                            <Button  id="OrderStartType" text="Start Order" type="Emphasized" press=".onStartOrder" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
+                            <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponents" class="sapUiTinyMarginEnd"/>
                         </items>
 
                     </HBox>

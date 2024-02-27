@@ -4,6 +4,7 @@ sap.ui.define([
     "use strict";
 
     /**
+     * Heavily adapted for the Lutron Project (Starting all SFCs in an Order and Validation components and the compolete the Order)
      * This plugin demonstrates a "View" type plugin that accepts "custom"
      * notifications.  The  Property Editor provides a switch that will enable
      * or disable notifications for the plugin.  The view for this plugin

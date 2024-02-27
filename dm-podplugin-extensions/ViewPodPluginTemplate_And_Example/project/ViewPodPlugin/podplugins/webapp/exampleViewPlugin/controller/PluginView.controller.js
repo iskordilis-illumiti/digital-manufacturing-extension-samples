@@ -1,8 +1,9 @@
 sap.ui.define([
     "sap/ui/model/json/JSONModel",
+    "sap/ui/core/Fragment",
     "sap/dm/dme/podfoundation/controller/PluginViewController",
     "sap/base/Log"
-], function (JSONModel, PluginViewController, Log) {
+], function (JSONModel, Fragment, PluginViewController, Log) {
     "use strict";
 
     var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO);
@@ -19,6 +20,7 @@ sap.ui.define([
         onInit: function () {
             if (PluginViewController.prototype.onInit) {
                 PluginViewController.prototype.onInit.apply(this, arguments);
+               
             }
         },
 
@@ -33,6 +35,7 @@ sap.ui.define([
             this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
             this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
             var oConfig = this.getConfiguration();
+            oLogger.info("onBeforeRendering: getConfiguration():-> "+oConfig);
             // check if close icon should be displayed
             //Configured in the POD Designer 
             this.configureNavigationButtons(oConfig);
@@ -83,23 +86,67 @@ sap.ui.define([
 
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             oselect = oData;
+           
 
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
             }
+            // loadModel first since it creates a model from scratch 
             this.loadModel();
+            //Now set the values from the selection contained in the event
+            this.getView().getModel().setProperty("/wrklstselectop",oData);
+           
+
         },
+        //------------------ Start Validate Components --------
+
+        onValidateComponents: function (evt) {
+            oLogger.info("onValidateComponent: " + evt);
+
+            var fakemodel = {
+                components: [
+                    { component: "Component1", description: "Description1", validated: "Y" },
+                    { component: "Component2", description: "Description2", validated: "N" },
+                    { component: "Component3", description: "Description3", validated: "Y" }
+                ]
+            };
+            this.getView().getModel().setProperty("/components", fakemodel.components);
+
+            //TODO handle failures gracefully
+            //illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation"
+            //^ -------- app ----------------------------^--view+^ fragment without fragment.xml
+            // Assumes that fragment is in the sam folder as the plugin view
+
+            if (!this._oDialog) {
+                this.loadFragment({
+
+                    name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation"
+                }).then(function (oDialog) {
+                    this._oDialog = oDialog;
+                    this.getView().addDependent(this._oDialog);
+                    this._oDialog.open();
+                }.bind(this));
+            } else {
+                this._oDialog.open();
+
+            }
+
+        },
+        //----------------- End Validate Components ----------
+
         //----- Lutron Start Order ----------------
         // The StartOrder button was pressed
         // We need to start all the sfc's in the order
         // first call Order API to get all the SFCS for the order
         // then call start/sfcs to start all the gathered SFCS
+        // TOD remove all the code out of Button Event (bad practice)
+        // and Generalize for use in other plugins.
         // -----------------------------------------
 
         onStartOrder: function (evt) {
 
-            //get the Order from the input Box
+            //get the Order from the label box 
             //var eOrder=this.getView().byId("OrderTypeInput").getValue();
             var eOrderLabel = this.getView().byId("OrderValueLabel").getText();
             //get the plant
@@ -120,7 +167,10 @@ sap.ui.define([
 
 
             var that = this;
-            //try to start all sfc's in the order
+            this.setBusy(true);
+
+            //---------------------------- ajaxGetRequest /Orders ------------------
+            //get all the sfc in the order calling the order API and extracting sfcs from the response
             this.ajaxGetRequest(
                 sUrl,
                 oParameters,
@@ -128,7 +178,7 @@ sap.ui.define([
 
                     var sfcUrl = that.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
                     var sfcplant = that.getPodController().getUserPlant();
-                    var sfcOperation = "ASSEMBLE";
+                    var sfcOperation = "ASSEMBLE"; //TODO find the operation
                     var sfcResource = that.getPodSelectionModel().getResource().getResource();
                     var sfcSfcs = oResponseData["sfcs"];
 
@@ -136,26 +186,27 @@ sap.ui.define([
                     var ssfcParameters = {
                         plant: sfcplant,
                         operation: sfcOperation,
-                        quantity: 1, //find the quantity 
+                        quantity: 1, //TODO find the quantity 
                         resource: sfcResource,
                         sfcs: sfcSfcs //,
                         // processLot:""
 
                     }
-                    //TEMP try to make the Object in JSON Format to see if resolves the Bad Request error.
-                    //This did not work so is removed
-                    //var jsonParams=JSON.stringify(ssfcParameters);
 
+                    //--------------------ajaxPostRequest /sfc/v1/sfcs ------------
                     that.ajaxPostRequest(
                         sfcUrl,
                         ssfcParameters,
                         function (oResponseData) {
-                            oLogger.info("sfcs start success");
+                            that.showSuccessMessage("Order Started succesfully!", true);
+                            oLogger.info("Orderstart success");
+
 
                         },
                         //The error call back for the /sfc/sfcs/start API call
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
+                            that.showErrorMessage(oError, true);
 
                         }
                     ); //close parenthesis for the Post call (sfs/sfcs/start)
@@ -163,18 +214,34 @@ sap.ui.define([
                 },
                 //the error callback for the /Order API call
                 function (oError, sHttpErrorMessage) {
-                    s
+
                     oLogger.info("Errors " + sHttpErrorMessage);
 
                 });
 
 
-
+            this.setBusy(false);
             this.loadModel();
         },
         //----  End Lutron Start Order ---------
 
-        //---------------------------------------------
+        // ---------------Error - sucess callbacks -----
+        SucessPostSfcs: function (oResponseData) {
+
+        },
+        ErrorPostSfcs: function (oError, sHttpErrorMessage) {
+
+        },
+        SucessGetOrder: function (oResponseData) {
+
+        },
+        ErrorGetOrder: function (oError, sHttpErrorMessage) {
+
+        },
+        //------------End Error Sucess callbacks
+
+
+        //--------------------------------------
         // loadModel
         // The loadModel aggregates all the current information from the POD and 
         // set this model as the view model
@@ -187,6 +254,7 @@ sap.ui.define([
             var oPodController = this.getPodController();
             //get configuration as set in the POD designer 
             var oConfiguration = this.getConfiguration();
+            oLogger.info("config: " + JSON.stringify(oConfiguration));
             var bNotificationsEnabled = true;
             // if notification is enabled
             if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") {
@@ -278,6 +346,7 @@ sap.ui.define([
                 operations: aOperations,
                 notificationsEnabled: bNotificationsEnabled,
                 notificationMessage: "",
+                //Not needed for lutron but i leave it in.
                 materialCustomFields: aMaterialCustomFields
             };
 
@@ -286,10 +355,12 @@ sap.ui.define([
             }
             // add material custom fields to model
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
-            oLogger.info("oModel:-> : " + JSON.stringify(oModelData));
+            oLogger.info("oModel 358 :-> : " + JSON.stringify(oModelData));
             var oModel = new JSONModel(oModelData);
+
             // Set the model for the View with the gathered info
             oView.setModel(oModel);
+            oModel.setProperty('/wklstselected',oselect);
         },
 
         /*
@@ -338,6 +409,7 @@ sap.ui.define([
             this.getView().getModel().setProperty("/notificationMessage", sMessage);
         },
         //TODO remove this API call for the Lutron Plugin
+        // Commented out in the caller
         addMaterialCustomFields: function (sPlant, sMaterial) {
             // Populate parameters with plant and material name 
             var oParameters = {

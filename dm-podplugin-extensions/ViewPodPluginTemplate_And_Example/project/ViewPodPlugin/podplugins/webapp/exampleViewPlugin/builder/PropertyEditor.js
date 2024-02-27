@@ -12,15 +12,18 @@ sap.ui.define([
         },
 
         addPropertyEditorContent: function (oPropertyFormContainer) {
+            console.log('Property Editor addPropertyEditorContent');
             var oData = this.getPropertyData();
             this.addSwitch(oPropertyFormContainer, "notificationsEnabled", oData);
             this.addSwitch(oPropertyFormContainer, "closeButtonVisible", oData);
+            this.addSwitch(oPropertyFormContainer,"validateComponentsVisible",oData);
         },
 
         getDefaultPropertyData: function () {
             var oData = {
                 "notificationsEnabled": true,
-                "closeButtonVisible": false
+                "closeButtonVisible": false,
+                "validateComponentsVisible":false
             };
 
             return oData;

@@ -1,0 +1,30 @@
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:table="sap.ui.table">
+    <Dialog title="Validate Components">
+
+    <Table id="Vcomp"  items="{
+                            path: '/components'
+                        }">
+        <columns>
+            <Column>
+                <Text text='Components'/>
+            </Column>
+            <Column>
+                <Text text="Description"/>
+            </Column>
+            <Column>
+                <Text text="Validated"/>
+            </Column>
+        </columns>
+        <items>
+            <ColumnListItem>
+                <cells>
+                    <Text text="{component}"/>
+                    <Text text="{description}"/>
+                    <Text text="{validated}"/>
+            </cells>
+            </ColumnListItem>
+        </items>
+        </Table>
+    </Dialog>     
+</core:FragmentDefinition>
+    
