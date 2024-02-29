@@ -1,3 +1,4 @@
+
 sap.ui.define([
     "sap/ui/model/json/JSONModel",
     "sap/ui/core/Fragment",
@@ -7,9 +8,17 @@ sap.ui.define([
     "use strict";
 
     var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO);
-    // add a oselect to receive the selected operation when the worklist selection changes
-    // this will be global var in this POD context
-    var oselect = {};
+    //------------------------------------------------------------------------
+    //  add a wrklstcurrentsel to receive the selected row on the worklist 
+    // (this is includes Operation that is missing from the selectionModel for some reason)
+    //  this will be global var in this POD context
+    // this object is updated everytime that the selection on the worklist is changed
+    // the loadModel  is updated to merge this object into the model in the view
+
+    var wrklstcurrentsel = {}, wrklstsopersel = "notset";
+    var glbStack = [];
+
+    //--------------------------------------------------------------------------
 
     var oPluginViewController = PluginViewController.extend("illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
         metadata: {
@@ -20,7 +29,7 @@ sap.ui.define([
         onInit: function () {
             if (PluginViewController.prototype.onInit) {
                 PluginViewController.prototype.onInit.apply(this, arguments);
-               
+
             }
         },
 
@@ -35,7 +44,7 @@ sap.ui.define([
             this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
             this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
             var oConfig = this.getConfiguration();
-            oLogger.info("onBeforeRendering: getConfiguration():-> "+oConfig);
+
             // check if close icon should be displayed
             //Configured in the POD Designer 
             this.configureNavigationButtons(oConfig);
@@ -71,6 +80,7 @@ sap.ui.define([
         },
 
         onOperationChangeEvent: function (sChannelId, sEventId, oData) {
+            var p = 10; //just to put a breakpoint
             //oLogger.info("onOperationChangeEvent: " + JSON.stringify(oData));
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
@@ -85,8 +95,11 @@ sap.ui.define([
         //We need to extract the operation from the oData
 
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
-            oselect = oData;
-           
+            //get the data from the worklist selection row into wklstcurrentsel
+            //get the operation into wrklstsopersel
+            wrklstcurrentsel = oData;
+            wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "non";
+            glbStack.push(wrklstsopersel);
 
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
@@ -94,11 +107,131 @@ sap.ui.define([
             }
             // loadModel first since it creates a model from scratch 
             this.loadModel();
-            //Now set the values from the selection contained in the event
-            this.getView().getModel().setProperty("/wrklstselectop",oData);
-           
 
         },
+        _getWorkListSelectedOperationGlb: function () {
+            return wrklstsopersel;
+        },
+        _getWorkListSelectedRowDataGlb: function () {
+            return wrklstcurrentsel;
+
+        },
+        _debugGlb: function (m) {
+
+            // It seems we are getting circular references exceptions when trying to JSON.stringy the model so catch the
+            // exception so that the plugin does not fail , this is a debug function so is ok
+            try {
+                if (m) {
+                    oLogger.info(m + " : " + "Globals->  wrklstcurrentsel: " + "  wrklstsopersel: " + wrklstsopersel);
+                } else {
+                    oLogger.info("Globals->  wrklstcurrentsel: " + "  wrklstsopersel: " + wrklstsopersel);
+                }
+            } catch (error) {
+                oLogger.info("Error which is (propably circular dependency ):", Error);
+            } finally {
+                // the statement below gets the the full json model in
+                //javascript format.
+                var theModel = this.getView().getModel().getData();
+            }
+        },
+        //--------------- getStartableSFCS -----------
+        getStartableSFCS: function (plant, sfcstofilter) {
+
+            var startableSFCS = [];
+
+            sfcstofilter.forEach((item, index) => {
+                if (this.getSFCStatus(item)) {
+                    startableSFCS.push(item);
+                }
+            });
+            return startableSFCS;
+        },
+
+        //---------------------- end getStartable SFCS ------
+
+        filterSFs: function (sfcstofilter) {
+
+            var startableSFCS = [];
+
+            var promises = sfcstofilter.map(item => {
+                return this.getSFCStatus(item)
+                    .then(isStartable => {
+                        if (isStartable) {
+                            startableSFCS.push(item);
+                        }
+                    });
+            });
+
+            return Promise.all(promises)
+                .then(() => {
+                    return startableSFCS; // Return startable SFCs once all promises have resolved
+                })
+                .catch(error => {
+                    console.error(error); // Log any errors
+                });
+
+        },
+
+        getSFCStatus: function (thesfc) {
+            //we will call sfc/v1/sfc/detail to get the full details of the sfc
+            // we will get the status and check for new status will return true or false
+            // true if the sfc is inQueue or new ,false if the sfc is Started (active)
+            // we need plant and sfc to call the API
+            var theplant = this.getPodController().getUserPlant();
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
+            var params = {
+                plant: theplant,
+                sfc: thesfc
+            }
+            var that = this;
+            var status = [];
+            this.ajaxGetRequest(sUrl, params, function (oResponseData) {
+                var dummy1 = 0; //debug breakpoint to check data
+                var sfcstatus = oResponseData.status;
+                status.push(sfcstatus);
+
+
+
+            }, function (oError, sHttpErrorMessage) {
+                var dummy2 = 0;  //debug breakpoint to check data
+
+
+            });
+            return status;
+        },
+
+        ComponentAPISucsess: function (oResponseData) {
+            var result = oResponseData;
+            var componentmodel = {
+                components:
+                    [
+
+                       
+                    ]
+            };
+            for (let i = 0; i < result.length; i++) {
+                 
+                componentmodel.components.push(
+                    {component:result[i].component,description: result[i].componentDescription,validated:"N"}
+                );
+                
+
+            } this.getView().getModel().setProperty("/components", componentmodel.components);
+
+
+
+
+
+
+
+
+        },
+        ComponentAPIError: function (oError, sHttpErrorMessage) {
+
+        },
+
+
+
         //------------------ Start Validate Components --------
 
         onValidateComponents: function (evt) {
@@ -112,6 +245,26 @@ sap.ui.define([
                 ]
             };
             this.getView().getModel().setProperty("/components", fakemodel.components);
+            //component API Endpoint (from Asssembly)
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
+            //set the required params we plant and sfc
+            var selection = this.getPodSelectionModel().getSelections();
+
+            var thesfc = selection[0].getSfc().getSfc();
+
+            var params = {
+                plant: this.getPodController().getUserPlant(),
+                sfc: thesfc
+            }
+
+            var that = this;
+            this.ajaxGetRequest(sUrl, params, function (oResponseData) {
+                that.ComponentAPISucsess(oResponseData);
+
+            }, function (Error, sHttpErrorMessage) {
+                that.ComponentAPIError(Error, sHttpErrorMessage);
+
+            });
 
             //TODO handle failures gracefully
             //illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation"
@@ -131,7 +284,6 @@ sap.ui.define([
                 this._oDialog.open();
 
             }
-
         },
         //----------------- End Validate Components ----------
 
@@ -139,12 +291,14 @@ sap.ui.define([
         // The StartOrder button was pressed
         // We need to start all the sfc's in the order
         // first call Order API to get all the SFCS for the order
+        // filter the sfc only the ones appropriate for starting (remove sfc's that are Active)
         // then call start/sfcs to start all the gathered SFCS
-        // TOD remove all the code out of Button Event (bad practice)
+        //
         // and Generalize for use in other plugins.
         // -----------------------------------------
 
         onStartOrder: function (evt) {
+            this._debugGlb("onStartOrder ");
 
             //get the Order from the label box 
             //var eOrder=this.getView().byId("OrderTypeInput").getValue();
@@ -176,11 +330,19 @@ sap.ui.define([
                 oParameters,
                 function (oResponseData) {
 
+
                     var sfcUrl = that.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
                     var sfcplant = that.getPodController().getUserPlant();
-                    var sfcOperation = "ASSEMBLE"; //TODO find the operation
+                    var sfcOperation = that._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
                     var sfcResource = that.getPodSelectionModel().getResource().getResource();
                     var sfcSfcs = oResponseData["sfcs"];
+                    //filter the sfcs and only use the sfc that are new or inQueue
+
+                    var filteredsfcs = that.getStartableSFCS(sfcplant, sfcSfcs);
+
+
+
+
 
 
                     var ssfcParameters = {
@@ -192,14 +354,14 @@ sap.ui.define([
                         // processLot:""
 
                     }
-
+                    that._debugGlb("onStartOrder: before PostRequest ");
                     //--------------------ajaxPostRequest /sfc/v1/sfcs ------------
                     that.ajaxPostRequest(
                         sfcUrl,
                         ssfcParameters,
                         function (oResponseData) {
                             that.showSuccessMessage("Order Started succesfully!", true);
-                            oLogger.info("Orderstart success");
+                            //oLogger.info("Orderstart success");
 
 
                         },
@@ -250,7 +412,6 @@ sap.ui.define([
         loadModel: function () {
             //get the view in oView
             var oView = this.getView();
-            // get the PodController in oPodController
             var oPodController = this.getPodController();
             //get configuration as set in the POD designer 
             var oConfiguration = this.getConfiguration();
@@ -347,7 +508,8 @@ sap.ui.define([
                 notificationsEnabled: bNotificationsEnabled,
                 notificationMessage: "",
                 //Not needed for lutron but i leave it in.
-                materialCustomFields: aMaterialCustomFields
+                materialCustomFields: aMaterialCustomFields,
+                wrklstrow: wrklstcurrentsel
             };
 
             if (aOperations.length === 1) {
@@ -355,12 +517,14 @@ sap.ui.define([
             }
             // add material custom fields to model
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
-            oLogger.info("oModel 358 :-> : " + JSON.stringify(oModelData));
+            //oLogger.info("oModelData.wrllstrow :-> : " + JSON.stringify(oModelData.wrklstrow));
             var oModel = new JSONModel(oModelData);
 
             // Set the model for the View with the gathered info
             oView.setModel(oModel);
-            oModel.setProperty('/wklstselected',oselect);
+
+            this._debugGlb("after setModel in the ");
+
         },
 
         /*

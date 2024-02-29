@@ -64,6 +64,7 @@
 
                     </HBox>
                     <!-- End The StartOrder Controls-->
+                    <!-- hide this table with visible that evaluates to false-->
                     <Table
                         id="selectionsTable"
                         backgroundDesign="Solid"
@@ -99,12 +100,14 @@
                             </ColumnListItem>
                         </items>
                     </Table>
+                    <!-- Hidden table-->
                     <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTERX'}">
                         <items>
                             <Label id="operationCountLabel" text="Operations:" class="sapUiTinyMarginEnd"/>
                             <Label id="operationCount" text="{/operationCount}" width="100%" />
                         </items>
                     </HBox>
+                    <!-- hide this table too same teqnique -->
                     <Table
                         id="operationsTable"
                         backgroundDesign="Solid"
@@ -132,6 +135,7 @@
                             </ColumnListItem>
                         </items>
                     </Table>
+                    <!-- hidden table -->
                     <HBox width="100%" visible="{= ${/podType} === 'XWORK_CENTER'}">
                         <items>
                             <Label id="customFieldsLabel" text="Custom Fields:" class="sapUiTinyMarginEnd"/>
@@ -163,7 +167,8 @@
                             </ColumnListItem>
                         </items>
                     </Table>
-                    <VBox width="100%" visible="{/notificationsEnabled}">
+                    <!-- hide this VBox  too  <VBox width="100%" visible="{/notificationsEnabled}"> -->    
+                    <VBox width="100%" visible="false">
                         <items>
                             <Label id="notificationLabel" text="Notification Message:" class="sapUiTinyMarginEnd"/>
                             <TextArea id="notificationText" value="{/notificationMessage}" growing="true" width="100%"/>
