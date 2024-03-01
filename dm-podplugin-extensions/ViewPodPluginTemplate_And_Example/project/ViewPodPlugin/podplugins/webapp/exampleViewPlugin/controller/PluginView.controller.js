@@ -56,12 +56,12 @@ sap.ui.define([
                 PluginViewController.prototype.onExit.apply(this, arguments);
             }
             // unsubscribe from POD events on exit
-            this.unsubscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this);
-            this.unsubscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
-            this.unsubscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
+            this.unsubscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this); 
+            this.unsubscribe("OperationListSelectEvent", this.onOperationChangeEvent, this); 
+            this.unsubscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this); 
         },
 
-        onBeforeRendering: function () {
+        onBeforeRendering: function () { 
             this.loadModel();
         },
 
@@ -134,13 +134,22 @@ sap.ui.define([
                 var theModel = this.getView().getModel().getData();
             }
         },
-        //--------------- getStartableSFCS -----------
+        //-------- getStartableSFCS --------------------
+        // filter the passed sfcs from the selected order
+        // to only sfcs that are appropriate for starting
+        // these means only the ones that have status of NEW or InQue
+        //-----------------------------------------------------------
+
         getStartableSFCS: function (plant, sfcstofilter) {
+            //for each sfc get the status (getSFCStatus DM API call)
+            // if the sfc is inQuew or New 
+            // is pushed into startable SFCs array
+            // returns the array of startable sfcs
 
             var startableSFCS = [];
-
             sfcstofilter.forEach((item, index) => {
-                if (this.getSFCStatus(item)) {
+                var p=this.getSFCStatus(item);
+                if (p) {
                     startableSFCS.push(item);
                 }
             });
@@ -171,6 +180,31 @@ sap.ui.define([
                 });
 
         },
+        // -- -Alternative getSfcStatus wraps the calls to API in a promise
+        // -- and makes it possible to use asyc - wait 
+        getSfcStatusAlt: async function (thesfc){
+            var theplant=this.getPodController().getUserPlant();
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
+            var params = {
+                plant: theplant,
+                sfc: thesfc
+            }
+            var that = this;
+
+            var oResponseData= await new Promise((resolve , reject) =>{
+                that.ajaxGetRequest(sUrl,params, function (oResponseData){
+                    var result = oResponseData.status;
+                    resolve(result);
+                }, function (Error, sHttpErrorMessage){
+                    reject(Error);
+                });
+            });
+
+        },
+
+        // ------------------ End Alternative getSFCStatusAlt --------
+
+        // ------------  getSFCStatus DM Api call ------------
 
         getSFCStatus: function (thesfc) {
             //we will call sfc/v1/sfc/detail to get the full details of the sfc
@@ -189,25 +223,22 @@ sap.ui.define([
                 var dummy1 = 0; //debug breakpoint to check data
                 var sfcstatus = oResponseData.status;
                 status.push(sfcstatus);
-
-
-
             }, function (oError, sHttpErrorMessage) {
                 var dummy2 = 0;  //debug breakpoint to check data
+                status.push("ERR");
 
 
             });
-            return status;
+            return status; //Not really returning anything useful TODO Remove
         },
+        // ----- End getSFCStatus -----------------------
+
 
         ComponentAPISucsess: function (oResponseData) {
             var result = oResponseData;
             var componentmodel = {
                 components:
-                    [
-
-                       
-                    ]
+                    []
             };
             for (let i = 0; i < result.length; i++) {
                  
@@ -215,22 +246,11 @@ sap.ui.define([
                     {component:result[i].component,description: result[i].componentDescription,validated:"N"}
                 );
                 
-
             } this.getView().getModel().setProperty("/components", componentmodel.components);
-
-
-
-
-
-
-
-
         },
         ComponentAPIError: function (oError, sHttpErrorMessage) {
-
+            //TODO do something with the error condition
         },
-
-
 
         //------------------ Start Validate Components --------
 
@@ -339,11 +359,8 @@ sap.ui.define([
                     //filter the sfcs and only use the sfc that are new or inQueue
 
                     var filteredsfcs = that.getStartableSFCS(sfcplant, sfcSfcs);
-
-
-
-
-
+                    //TODO when filteredsfcs working substitue the value 
+                    // below in the ssfcParameters.sfcs 
 
                     var ssfcParameters = {
                         plant: sfcplant,
@@ -352,7 +369,6 @@ sap.ui.define([
                         resource: sfcResource,
                         sfcs: sfcSfcs //,
                         // processLot:""
-
                     }
                     that._debugGlb("onStartOrder: before PostRequest ");
                     //--------------------ajaxPostRequest /sfc/v1/sfcs ------------
@@ -363,24 +379,19 @@ sap.ui.define([
                             that.showSuccessMessage("Order Started succesfully!", true);
                             //oLogger.info("Orderstart success");
 
-
                         },
                         //The error call back for the /sfc/sfcs/start API call
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
                             that.showErrorMessage(oError, true);
-
                         }
                     ); //close parenthesis for the Post call (sfs/sfcs/start)
-
                 },
                 //the error callback for the /Order API call
                 function (oError, sHttpErrorMessage) {
 
                     oLogger.info("Errors " + sHttpErrorMessage);
-
                 });
-
 
             this.setBusy(false);
             this.loadModel();
@@ -522,12 +533,10 @@ sap.ui.define([
 
             // Set the model for the View with the gathered info
             oView.setModel(oModel);
-
             this._debugGlb("after setModel in the ");
-
         },
 
-        /*
+        /*--------------------------------------------------------
          * This enables receiving Notification messages in the plugin
          * @override
          */
@@ -537,10 +546,10 @@ sap.ui.define([
             if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") {
                 bNotificationsEnabled = oConfiguration.notificationsEnabled;
             }
-            return bNotificationsEnabled;
+            return bNotificationsEnabled; 
         },
 
-        /*
+        /*----------------------------
          * Return the event name (i.e.;MEASUREMENT) being subscribed to by this plugin
          * @override
          */
@@ -600,7 +609,7 @@ sap.ui.define([
 
         handleResponse: function (oResponseData) {
             if (oResponseData && oResponseData.length > 0) {
-                // set customValues data to model property "materialCustomFields"    
+                // set customValues data to model property "materialCustomFields"     
                 this.getView().getModel().setProperty("/materialCustomFields", oResponseData[0].customValues);
             }
         },

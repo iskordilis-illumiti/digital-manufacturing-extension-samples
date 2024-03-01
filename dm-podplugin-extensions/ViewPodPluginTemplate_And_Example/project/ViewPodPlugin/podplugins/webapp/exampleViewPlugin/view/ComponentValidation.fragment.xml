@@ -4,22 +4,29 @@
     xmlns:table="sap.ui.table"
 >
     <Dialog title="Validate Components">
-        <content>
-            <Label text="Enter or Scan component" />
-            <Input id="componentInput" />
+        
+           
+       
+
+        <Table
+            id="Vcomp"
+            width="50%"
+            items="{
+                            path: '/components'
+                        }"
+        >
+         <headerToolbar>
+                <Toolbar>
+                 <Label text="Enter or Scan component"  width="35%"/>
+            <Input id="componentInput" width="35%"/>
             <Button
                 text="Validate"
                 type="Emphasized"
                 press="onValidatePressed"
             />
-        </content>
+                </Toolbar>
+                </headerToolbar>
 
-        <Table
-            id="Vcomp"
-            items="{
-                            path: '/components'
-                        }"
-        >
             <columns>
                 <Column>
                     <Text text='Components' />
