@@ -17,6 +17,26 @@ sap.ui.define([
 
     var wrklstcurrentsel = {}, wrklstsopersel = "notset";
     var glbStack = [];
+    // TODO temporary to debug and until I fix View Model 
+    // Bad practice
+    var _glbstartableSFCObj={
+        _sfcGoodToStart:[],
+        _glbGetsfcGoodToStart:function(){ return this._sfcGoodToStart},
+        _glbAdd:function(sObj){ this._sfcGoodToStart.push(sObj)},
+        _glbErase:function(){ this._sfcGoodToStart=[]},
+        _glbSet:function(sobj){ this._sfcGoodToStart=sobj},
+        _glbPush:function (sobj){ this._sfcGoodToStart.push(sobj)}
+        }
+
+    
+    const EXCLUDE_CODE=false;
+    const EXECUTE_CODE =false;
+    const ENABLE_NTFCMSG=false;
+
+    const SFCS_CHUNK=499;  //dont make this greater than 500  for calling sfc/sfcs/start
+    const SFCS_NEW =401;
+    const SFFS_INQUE=402;
+
 
     //--------------------------------------------------------------------------
 
@@ -138,30 +158,38 @@ sap.ui.define([
         // filter the passed sfcs from the selected order
         // to only sfcs that are appropriate for starting
         // these means only the ones that have status of NEW or InQue
+        // @input sfcstofilter  has all the sfcs in the order
         //-----------------------------------------------------------
 
         getStartableSFCS: function (plant, sfcstofilter) {
-            //for each sfc get the status (getSFCStatus DM API call)
-            // if the sfc is inQuew or New 
-            // is pushed into startable SFCs array
-            // returns the array of startable sfcs
-
-            var startableSFCS = [];
-            sfcstofilter.forEach((item, index) => {
-                var p=this.getSFCStatus(item);
-                if (p) {
-                    startableSFCS.push(item);
-                }
-            });
-            return startableSFCS;
+            //for each sfc get the status (getSFCStatusIsStartable DM API call)
+            var that=this;
+         
+        sfcstofilter.forEach((item, index) => {       
+            var promiseReturned=this. getSfcStatusIsStartable(item);           
+                promiseReturned.then(result => {
+                    console.log("then="+result);
+                    //that._glbstartableSFCObj._glbSet(result);
+                    //that.getView().getModel().setProperty("/startableSFCs",result);
+                    //var  currentState=that.getView().getProperty("/startableSFCs");
+                    console.log("result="+result);
+                    
+                });
+        });
+        // At this point the list of startable sfcs should be in the model ("startableSFCs")
+        // check by putting a watch variable sfcGoodtoStart
+        var sfcsGoodtostart=this.getView().getModel().getProperty("/startableSFCs");
+        this._debugGlb("after loop state of Model.startableSFCs"+sfcsGoodtostart);
+        
         },
 
         //---------------------- end getStartable SFCS ------
 
-        filterSFs: function (sfcstofilter) {
+        //Use Promise all to wait until all Promises
+        // Have been resolved
 
+        filterStartableSFCs: function (sfcstofilter) {
             var startableSFCS = [];
-
             var promises = sfcstofilter.map(item => {
                 return this.getSFCStatus(item)
                     .then(isStartable => {
@@ -173,16 +201,17 @@ sap.ui.define([
 
             return Promise.all(promises)
                 .then(() => {
-                    return startableSFCS; // Return startable SFCs once all promises have resolved
+                    return startableSFCS; // Return startable SFCs once all promises have been resolved
                 })
                 .catch(error => {
                     console.error(error); // Log any errors
                 });
 
         },
-        // -- -Alternative getSfcStatus wraps the calls to API in a promise
+        // -- -Alternative to getSfcStatus -SfcStatusIsStartable wraps the calls to sfc/detail API in a promise
         // -- and makes it possible to use asyc - wait 
-        getSfcStatusAlt: async function (thesfc){
+        // -- it add to the statable sfcs in an array to the model
+        getSfcStatusIsStartable: async function (thesfc){
             var theplant=this.getPodController().getUserPlant();
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
             var params = {
@@ -190,48 +219,35 @@ sap.ui.define([
                 sfc: thesfc
             }
             var that = this;
+            
 
             var oResponseData= await new Promise((resolve , reject) =>{
                 that.ajaxGetRequest(sUrl,params, function (oResponseData){
-                    var result = oResponseData.status;
+                    var code=oResponseData.status.code;
+                    var sfcWithCodeStartable=(code==SFCS_NEW || code==SFFS_INQUE)?oResponseData.sfc:"";
+                    // we want to push this to the model
+
+                    
+                    var tm= that.getView().getModel().getProperty("/startableSFCs");
+
+                    if (sfcWithCodeStartable){
+                        tm.push(sfcWithCodeStartable);
+                        that.getView().getModel().setProperty("/startableSFCs",tm);
+                        that._debugGlb("Setting tm in the model after validate called",tm);
+                    }
+                    var result = tm;
+
                     resolve(result);
                 }, function (Error, sHttpErrorMessage){
                     reject(Error);
                 });
             });
-
+            return oResponseData; 
         },
 
         // ------------------ End Alternative getSFCStatusAlt --------
 
-        // ------------  getSFCStatus DM Api call ------------
-
-        getSFCStatus: function (thesfc) {
-            //we will call sfc/v1/sfc/detail to get the full details of the sfc
-            // we will get the status and check for new status will return true or false
-            // true if the sfc is inQueue or new ,false if the sfc is Started (active)
-            // we need plant and sfc to call the API
-            var theplant = this.getPodController().getUserPlant();
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
-            var params = {
-                plant: theplant,
-                sfc: thesfc
-            }
-            var that = this;
-            var status = [];
-            this.ajaxGetRequest(sUrl, params, function (oResponseData) {
-                var dummy1 = 0; //debug breakpoint to check data
-                var sfcstatus = oResponseData.status;
-                status.push(sfcstatus);
-            }, function (oError, sHttpErrorMessage) {
-                var dummy2 = 0;  //debug breakpoint to check data
-                status.push("ERR");
-
-
-            });
-            return status; //Not really returning anything useful TODO Remove
-        },
-        // ----- End getSFCStatus -----------------------
+        
 
 
         ComponentAPISucsess: function (oResponseData) {
@@ -251,7 +267,7 @@ sap.ui.define([
         ComponentAPIError: function (oError, sHttpErrorMessage) {
             //TODO do something with the error condition
         },
-
+        // [Validate compoennt IS]
         //------------------ Start Validate Components --------
 
         onValidateComponents: function (evt) {
@@ -305,8 +321,14 @@ sap.ui.define([
 
             }
         },
+        onVaildatePressed: function (evt ){
+            showSuccessMessage("Validate button preseed");
+
+        },
+
         //----------------- End Validate Components ----------
 
+        //[Order IS]
         //----- Lutron Start Order ----------------
         // The StartOrder button was pressed
         // We need to start all the sfc's in the order
@@ -348,7 +370,8 @@ sap.ui.define([
             this.ajaxGetRequest(
                 sUrl,
                 oParameters,
-                function (oResponseData) {
+                function (oResponseData) { //Orders response
+                    that._debugGlb("Order response reched");
 
 
                     var sfcUrl = that.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
@@ -356,36 +379,55 @@ sap.ui.define([
                     var sfcOperation = that._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
                     var sfcResource = that.getPodSelectionModel().getResource().getResource();
                     var sfcSfcs = oResponseData["sfcs"];
-                    //filter the sfcs and only use the sfc that are new or inQueue
-
+                    
+                   
+                    //this has not the correct value here 
+                    // check getStartableSFCS
                     var filteredsfcs = that.getStartableSFCS(sfcplant, sfcSfcs);
+                    var checkmodel=that.getView().getModel().getProperty("/startableSFCs");
+                    that._debugGlb("currrent model startable sfcs ->",checkmodel);
+                
                     //TODO when filteredsfcs working substitue the value 
-                    // below in the ssfcParameters.sfcs 
+                    // below in the ssfcParameters.sfcs
+                    let totalSfcProcecesed = 0;
+                    let sfctotal = sfcSfcs.length;
+                    for (let i = 0; i < sfctotal; i += SFCS_CHUNK) {                          
+                            let startSFCChunk = sfcSfcs.slice(i+1,SFCS_CHUNK+totalSfcProcecesed)
+                            let towatch=startSFCChunk;
+                            var ssfcParameters = {
+                                plant: sfcplant,
+                                operation: sfcOperation,
+                                quantity: 1, //TODO find the quantity 
+                                resource: sfcResource,
+                                sfcs: sfcSfcs //,
+                                // processLot:""
+                            }
+                            that._debugGlb("onStartOrder: before PostRequest ");
+                            //--------------------ajaxPostRequest /sfc/v1/sfcs ------------
+                            if (EXECUTE_CODE){
+                            that.ajaxPostRequest(
+                                sfcUrl,
+                                ssfcParameters,
+                                function (oResponseData) {
+                                    that.showSuccessMessage("Order Started succesfully!", true);
+                                    //oLogger.info("Orderstart success");
 
-                    var ssfcParameters = {
-                        plant: sfcplant,
-                        operation: sfcOperation,
-                        quantity: 1, //TODO find the quantity 
-                        resource: sfcResource,
-                        sfcs: sfcSfcs //,
-                        // processLot:""
+                                },
+                                //The error call back for the /sfc/sfcs/start API call
+                                function (oError, sHttpErrorMessage) {
+                                    oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
+                                    that.showErrorMessage(oError, true);
+                                }
+                            );   //close parenthesis for the Post call (sfs/sfcs/start)
+                            }
+                            else {
+                                //debug section will not run when EXECUTE_CODE ==TRUE
+                                console.log("-- ajaPostRequest bypassed");
+                            }
+                           
+                        
                     }
-                    that._debugGlb("onStartOrder: before PostRequest ");
-                    //--------------------ajaxPostRequest /sfc/v1/sfcs ------------
-                    that.ajaxPostRequest(
-                        sfcUrl,
-                        ssfcParameters,
-                        function (oResponseData) {
-                            that.showSuccessMessage("Order Started succesfully!", true);
-                            //oLogger.info("Orderstart success");
 
-                        },
-                        //The error call back for the /sfc/sfcs/start API call
-                        function (oError, sHttpErrorMessage) {
-                            oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
-                            that.showErrorMessage(oError, true);
-                        }
-                    ); //close parenthesis for the Post call (sfs/sfcs/start)
                 },
                 //the error callback for the /Order API call
                 function (oError, sHttpErrorMessage) {
@@ -415,6 +457,7 @@ sap.ui.define([
 
 
         //--------------------------------------
+        // //[LoadModel IS]
         // loadModel
         // The loadModel aggregates all the current information from the POD and 
         // set this model as the view model
@@ -437,6 +480,7 @@ sap.ui.define([
             var oPodSelectionModel = this.getPodSelectionModel();
             if (!oPodSelectionModel) {
                 oView.setModel(new JSONModel());
+                this._debugGlb("INFO: loadModel - 488 Model globbered no selectionModel");
                 return;
             }
             //get the pod type in sPodType
@@ -520,8 +564,10 @@ sap.ui.define([
                 notificationMessage: "",
                 //Not needed for lutron but i leave it in.
                 materialCustomFields: aMaterialCustomFields,
-                wrklstrow: wrklstcurrentsel
+                wrklstrow: wrklstcurrentsel,
+                startableSFCs:[]
             };
+
 
             if (aOperations.length === 1) {
                 oModelData.operation = aOperations[0].operation;
@@ -530,10 +576,11 @@ sap.ui.define([
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
             //oLogger.info("oModelData.wrllstrow :-> : " + JSON.stringify(oModelData.wrklstrow));
             var oModel = new JSONModel(oModelData);
+            this._debugGlb("Model is re-intialized with :"+(oModelData.startableSFCs));
 
             // Set the model for the View with the gathered info
             oView.setModel(oModel);
-            this._debugGlb("after setModel in the ");
+           
         },
 
         /*--------------------------------------------------------
