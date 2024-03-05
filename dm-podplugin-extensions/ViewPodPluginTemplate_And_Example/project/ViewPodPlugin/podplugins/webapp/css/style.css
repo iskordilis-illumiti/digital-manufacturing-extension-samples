@@ -1,1 +1,4 @@
-/* Enter your custom styles here */
+/* Lutron Plugin styles*/
+.lutronpluginPanelBorder {
+    border: 2px solid black;
+}

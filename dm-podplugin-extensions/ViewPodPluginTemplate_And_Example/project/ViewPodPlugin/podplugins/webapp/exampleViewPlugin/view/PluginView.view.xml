@@ -5,7 +5,7 @@
     controllerName="illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView" 
     width="100%" 
     height="100%">
-    <Panel id="podModelPluginPanel" width="100%" height="100%" expandable="false" expanded="true" accessibleRole="Region" backgroundDesign="Transparent">
+    <Panel id="podModelPluginPanel" class=  "lutronpluginPanelBorder" width="100%" height="100%" expandable="false" expanded="true" accessibleRole="Region" backgroundDesign="Transparent">
         <headerToolbar>
             <Toolbar height="3rem">
                 <Title text="{i18n>title}"/>
@@ -53,18 +53,23 @@
                         </items>
                     </HBox>
                     <!-- The StartOrder Controls-->
-                    <HBox width="100%">
+                    <HBox width="100%" class=  "lutronpluginPanelBorder">
                         <items>
                             <Label id="orderTypeLable" text="Order" class="sapUiTinyMarginEnd"/>
                             <!-- <Input id="OrderTypeInput"  value="{/orderselect}" class="sapUiTinyMarginEnd"/> -->
                             <Label id="OrderValueLabel" text="{/orderselect}" class="sapUiTinyMarginEnd"/>
                             <Button  id="OrderStartType" text="Start Order" type="Emphasized" press=".onStartOrder" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
                             <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponents" class="sapUiTinyMarginEnd"/>
+                            <Button id="CompletComp" text="Complete Order" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onCompleteComponents" class="sapUiTinyMarginEnd"/>
+                            <Button id="SignoffComp" text="Sign Off Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onSignOffComponents" class="sapUiTinyMarginEnd"/>
+
+
                         </items>
 
                     </HBox>
                     <!-- End The StartOrder Controls-->
                     <!-- hide this table with visible that evaluates to false-->
+                    <!--
                     <Table
                         id="selectionsTable"
                         backgroundDesign="Solid"
@@ -100,14 +105,19 @@
                             </ColumnListItem>
                         </items>
                     </Table>
+                    -->
                     <!-- Hidden table-->
+                    <!--
                     <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTERX'}">
                         <items>
                             <Label id="operationCountLabel" text="Operations:" class="sapUiTinyMarginEnd"/>
                             <Label id="operationCount" text="{/operationCount}" width="100%" />
                         </items>
+                     
                     </HBox>
+                    -->  
                     <!-- hide this table too same teqnique -->
+                    <!--
                     <Table
                         id="operationsTable"
                         backgroundDesign="Solid"
@@ -135,7 +145,10 @@
                             </ColumnListItem>
                         </items>
                     </Table>
+                    -->
+
                     <!-- hidden table -->
+                    <!--
                     <HBox width="100%" visible="{= ${/podType} === 'XWORK_CENTER'}">
                         <items>
                             <Label id="customFieldsLabel" text="Custom Fields:" class="sapUiTinyMarginEnd"/>
@@ -167,13 +180,16 @@
                             </ColumnListItem>
                         </items>
                     </Table>
+                    -->
                     <!-- hide this VBox  too  <VBox width="100%" visible="{/notificationsEnabled}"> -->    
+                    <!--
                     <VBox width="100%" visible="false">
                         <items>
                             <Label id="notificationLabel" text="Notification Message:" class="sapUiTinyMarginEnd"/>
                             <TextArea id="notificationText" value="{/notificationMessage}" growing="true" width="100%"/>
                         </items>
                     </VBox>
+                    -->
                 </items>
             </VBox>
         </content>

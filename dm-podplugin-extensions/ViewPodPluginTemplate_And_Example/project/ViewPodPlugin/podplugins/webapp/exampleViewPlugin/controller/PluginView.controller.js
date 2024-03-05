@@ -22,10 +22,22 @@ sap.ui.define([
     var _glbstartableSFCObj = {
         _sfcGoodToStart: [],
         _glbGetsfcGoodToStart: function () { return this._sfcGoodToStart },
-        _glbAdd: function (sObj) { this._sfcGoodToStart.push(sObj) },
+        _glbAdd: function (sObj) {this._sfcGoodToStart.push(sObj) },
         _glbErase: function () { this._sfcGoodToStart = [] },
         _glbSet: function (sobj) { this._sfcGoodToStart = sobj },
     }
+
+//Simple state machine nodes for the Lutron plugin
+const LPNS=-1;
+const INIT_LP =0;
+const START_ORDER_ON=1;
+const START_ORDER_WORKING=2;
+const START_ORDER_DONE=3;
+const VALIDATE_COMP_ON=4;
+const VALIDATE_COMP_DONE=5;
+const COMPLETE_ORDER_ON=6;
+const COMPLETE_ORDER_WORKING=7;
+const COMPLETE_ORDER_DONE=8;
 
 
     //HIDE CODE  for debug    
@@ -82,6 +94,7 @@ sap.ui.define([
 
         onBeforeRendering: function () {
             this.loadModel();
+            this.stateMachineLutronProcess(INIT_LP);
         },
 
         onAfterRendering: function () {
@@ -114,9 +127,13 @@ sap.ui.define([
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             //get the data from the worklist selection row into wklstcurrentsel
             //get the operation into wrklstsopersel
-            wrklstcurrentsel = oData;
-            wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "non";
-            glbStack.push(wrklstsopersel);
+                wrklstcurrentsel = oData;
+                wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "non";
+           
+           
+            //this._glbstartableSFCObj._glbAdd(wrklstcurrentsel);
+          
+            this.stateMachineLutronProcess(START_ORDER_ON);
 
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
@@ -131,20 +148,24 @@ sap.ui.define([
         _getWorkListSelectedRowDataGlb: function () {
             return wrklstcurrentsel;
         },
-        _debugGlb: function (m) {
-            // It seems we are getting circular references exceptions when trying to JSON.stringy the model so catch the
-            // exception so that the plugin does not fail , this is a debug function so is ok
+        _debugGlb: function (m,b) {
+          
             try {
-                if (m) {
-                    oLogger.info(m + " : " + "Globals->  wrklstcurrentsel: " + "  wrklstsopersel: " + wrklstsopersel);
-                } else {
-                    oLogger.info("Globals->  wrklstcurrentsel: " + "  wrklstsopersel: " + wrklstsopersel);
-                }
+                var param=b ? b :"";
+                var param0=m ? m: "info:"
+                
+                    oLogger.info(param0 + " : " + "Globals->  wrklstcurrentsel: " + 
+                                                        this._getWorkListSelectedRowDataGlb()+
+                                                        "  wrklstsopersel: " +
+                                                         wrklstsopersel+"  param:",param);
+                
+                
             } catch (error) {
                 oLogger.info("Error which is (propably circular dependency ):", Error);
             } finally {
                 // the statement below gets the the full json model in
                 //javascript format.
+                //for a breakpoint in the debugger
                 var theModel = this.getView().getModel().getData();
             }
         },
@@ -165,7 +186,7 @@ sap.ui.define([
                     console.log("then=" + result);
                     //that._glbstartableSFCObj._glbSet(result);
                     //that.getView().getModel().setProperty("/startableSFCs",result);
-                    //var  currentState=that.getView().getProperty("/startableSFCs");
+                    //var  currentState=that.getView().getModel().getProperty("/startableSFCs");
 
                 });
             });
@@ -249,12 +270,61 @@ sap.ui.define([
             return oResponseData;
         },
         // ------------------ End getSfcStatusIsStartable --------
+
+        //--
+        //---------------------- classificationRead -----------------
+        classificationRead: async function(imaterial) {
+            var sUrl=this.getPublicApiRestDataSourceUri() + "/classification/v1/read";
+            var sfcplant = this.getPodController().getUserPlant();
+            var oObjectKeys=[];
+            if (imaterial){
+                oObjectKeys.push(imaterial);
+            } else {
+                var pmaterial=this.getView().getModel().getProperty("/material");
+                oObjectKeys.push(pmaterial);
+                console.log("ObjectKeyss="+oObjectKeys);
+            }
+
+
+            var ssfcParameters={
+                plant:sfcplant,
+                objectKeys:oObjectKeys,
+                objectType:"MATERIAL", //Material
+                classType:"001"
+                //,classes:[""]//
+                
+            }
+            var that=this;
+            var oResponseData = await new Promise((resolve, reject) => {
+                this.ajaxPostRequest(
+                    sUrl,
+                    ssfcParameters,
+                    function (oResponseData) {
+                        that.showSuccessMessage("classication called  succesfully!", true);
+                        //oLogger.info("classification call success");
+                        resolve(oResponseData);
+                    },
+                    //The error call back for the /classification/v1/read
+                    function (oError, sHttpErrorMessage) {
+                        oLogger.info("Classsication API call failed "   + sHttpErrorMessage);
+                        that.showErrorMessage(oError, true);
+                        reject(oError);
+                    })
+            });
+            return oResponseData;
+
+        },
+        //--------------------- End classificationRead ------------------------
+
+
         //---
         // --------------------- startAllSfcs----------------
         // It starts all sfcs in the passed array at Plant ,Operation , quantity and Resource
         // It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402))
+        // It returns a Promise with all the started sfcs if succesfull
 
-        startAllSfcs: async function (sOperation,
+        startAllSfcs: async function (
+            sOperation,
             sPlant,
             sResource,
             sQuantity,
@@ -286,6 +356,7 @@ sap.ui.define([
                     function (oError, sHttpErrorMessage) {
                         oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
                         that.showErrorMessage(oError, true);
+                        reject(oError);
                     })
             });
             return oResponseData;
@@ -303,17 +374,23 @@ sap.ui.define([
                     { component: result[i].component, description: result[i].componentDescription, validated: "N" }
                 );
 
-            } this.getView().getModel().setProperty("/components", componentmodel.components);
+            } 
+            this.getView().getModel().setProperty("/components", componentmodel.components);
         },
         ComponentAPIError: function (oError, sHttpErrorMessage) {
             //TODO do something with the error condition
         },
 
-        // [Validate compoennt IS]
+        // [Validate component IS]
         //------------------ Start Validate Components --------
 
         onValidateComponents: function (evt) {
-            oLogger.info("onValidateComponent: " + evt);
+            if (evt){
+                oLogger.info("onValidateComponents: " + evt);
+            }else {
+                oLogger.info("onValidateComponents -called internally");
+
+            }
 
             var fakemodel = {
                 components: [
@@ -356,11 +433,84 @@ sap.ui.define([
                 this._oDialog.open();
             }
         },
-        onVaildatePressed: function (evt) {
-            showSuccessMessage("Validate button preseed");
+        
+        //----------------- End Validate Components ----------
+        onValidatePressed: function (evt) {
+            this.showSuccessMessage("Validate button pressed");
         },
 
-        //----------------- End Validate Components ----------
+        onCompleteComponents: function(evt){
+
+             this.showSuccessMessage("Validate button pressed");
+
+        },
+        onSignOffComponents: function(evt){
+            this.showSuccessMessage("Validate button pressed");
+
+        },
+        stateMachineLutronProcess: function ( state){
+           
+            var currentLPState= state ? state: LPNS;
+
+            //get all the button id's from the view
+            
+            var ButtonSO=this.byId("OrderStartType");
+            var ButtonVC=this.byId("ValidateCompType");
+            var ButtonCO=this.byId("CompletComp");
+            var ButtonSOFF=this.byId("SignoffComp");
+            var buttonSoText=ButtonSO.getText();
+            var ButtonVcText=ButtonVC.getText();
+            var ButtonCoText=ButtonCO.getText();
+
+            switch(state){
+                case INIT_LP:
+                    //all buttons are disabled
+                    ButtonSO.setEnabled(false);
+                    ButtonVC.setEnabled(false);
+                    ButtonCO.setEnabled(false);
+                    ButtonSOFF.setEnabled(false);
+                    currentLPState=INIT_LP;
+                    break;
+            
+            case START_ORDER_ON:
+                ButtonSO.setEnabled(true);
+                currentLPState=START_ORDER_ON;
+                break;
+
+            case START_ORDER_WORKING:
+                    ButtonSO.setEnabled(false);
+                    ButtonSO.setText("Working ......");
+                    currentLPState=START_ORDER_WORKING;
+                break;
+            case START_ORDER_DONE:
+                ButtonSO.setEnabled(true);
+                ButtonSO.setText(buttonSoText);
+                currentLPState=START_ORDER_DONE;
+
+
+
+                break;
+            case VALIDATE_COMP_ON:
+                break;
+            case VALIDATE_COMP_DONE:
+                break;
+            case  COMPLETE_ORDER_ON:
+                break;
+            case COMPLETE_ORDER_WORKING:
+                break;
+            case COMPLETE_ORDER_DONE:
+                break;
+            
+            default:
+                console.log("Unknown state");
+
+
+                return currentLPState;
+
+        }
+    },
+
+
 
         //[Order IS]
         //----- Lutron Start Order ----------------
@@ -375,7 +525,19 @@ sap.ui.define([
         // -----------------------------------------
 
         onStartOrder: function (evt) {
+            var oButtonSO=evt.getSource();
             this._debugGlb("onStartOrder ");
+            //check to see if a selection have been made
+            var oOp=this._getWorkListSelectedOperationGlb();
+            if (oOp ==="notset"){
+                this.showErrorMessage("Order is not selected", true);
+                return;
+            } else {
+                 //set the Busy indicator to the startOrders Button.
+
+                oButtonSO.setBusy(true);
+                this.stateMachineLutronProcess( START_ORDER_WORKING);                
+            }
 
             //get the Order from the label box 
             //var eOrder=this.getView().byId("OrderTypeInput").getValue();
@@ -394,10 +556,7 @@ sap.ui.define([
                 order: eOrderLabel,
                 plant: ePlant
             };
-
             var that = this;
-            //set the Busy indicator to the startOrders Button.
-            this.setBusy(true);
 
             //---------------------------- ajaxGetRequest /Orders ------------------
             //get all the sfc in the order calling the order API and extracting sfcs from the response
@@ -415,7 +574,7 @@ sap.ui.define([
 
                     // check getStartableSFCS and get in the list (filteredsfcs) only the ones that can be started.
                     
-                        console.log("unfileterd sfcs count = "+sfcSfcs);
+                        console.log("unfileterd sfcs count = "+sfcSfcs.length);
                     var filteredsfcs = {};
                     if (!ENABLE_PROMISE_ALL) {
                         filteredsfcs = that.getStartableSFCS(sfcplant, sfcSfcs);
@@ -424,8 +583,8 @@ sap.ui.define([
                         filteredsfcs = that.filterStartableSFCs(sfcSfcs);
                     }
 
-                    var checkmodel = that.getView().getModel().getProperty("/startableSFCs");
-                    that._debugGlb("currrent model startable sfcs ->", checkmodel);
+    
+                   
                     // validatedfcs contains the filtered sfcs (new,inqueue)
                     // below in the ssfcParameters.sfcs
                     let totalSfcProcecesed = 0;   
@@ -433,13 +592,16 @@ sap.ui.define([
                         console.log(validatedsfcs);
                         let vlength = validatedsfcs.length;
                         console.log("validated sfcs lentgh" + vlength);
+
+                        // Split the sfc list of validated sfcs
+                        // to chuncks of CFCS_CHUNK
+                        // and call start with one chunk of SFCs at a time.
                       
                         for (let i = 0; i < vlength; i += SFCS_CHUNK) {
                             let startSFCChunk = validatedsfcs.slice(i , i+=SFCS_CHUNK);
                             //we have a bunch of startable sfcs here in 
 
-                            let towatch = startSFCChunk;
-                            console.log("chunck ="+towatch.length);
+                            console.log("chunck = "+startSFCChunk.length);
                             var ssfcParameters = {
                                 plant: sfcplant,
                                 operation: sfcOperation,
@@ -469,7 +631,15 @@ sap.ui.define([
                             else {
                                 //debug section will not run when EXECUTE_CODE ==TRUE
                                 console.log("-- ajaPostRequest bypassed");
-                                console.log("This should not be calles unless all promises are resolved")
+                                console.log("to start="+ startSFCChunk.length);
+                                //validate components here and subsequently complete
+                                that.stateMachineLutronProcess(START_ORDER_DONE);
+                                var clresult=that.classificationRead();
+                                clresult.then( cl =>{
+                                    console.log(cl);
+
+                                });
+                                that.onValidateComponents();
                             }
                         }
                     }
@@ -480,8 +650,8 @@ sap.ui.define([
                 function (oError, sHttpErrorMessage) {
                     oLogger.info("Errors " + sHttpErrorMessage);
                 });
-
-            this.setBusy(false);
+        // Hide theBusy operator       
+        oButtonSO.setBusy(false);
 
             // This might have side effect
             // so comment out for now.
@@ -543,7 +713,7 @@ sap.ui.define([
             var sInput, sSfc, sMaterial, sShopOrder;
             //get the selections in aSelections
             var aSelections = oPodSelectionModel.getSelections();
-            if (aSelections && aSelections.length > 0) {
+            if (aSelections && aSelections.length > 0) { 
                 //loop through all the selections and extract info in sInput ,sSfc , sMaterial,sShopOrder
                 for (var i = 0; i < aSelections.length; i++) {
                     sInput = aSelections[i].getInput();
@@ -574,7 +744,7 @@ sap.ui.define([
                 }
                 iSelectionCount = aInputs.length;
             }
-            //TODO remove the customfields for this Lutron Plugin
+    
 
             var iOperationCount = 0;
             var aOperations = [];
@@ -593,24 +763,38 @@ sap.ui.define([
                     }
                 }
                 iOperationCount = aOperations.length;
+            } else {
+
             }
             // Create the Model in oModelData
+            var oInputType=oPodSelectionModel.getInputType();
+            var oWorkCenter=oPodSelectionModel.getWorkCenter();
+            //operation  somehow is not in the selection Model so we will 
+            // Use the one that we stored from the WorklistChangeEvent
+            var oOperation = this._getWorkListSelectedOperationGlb();
+            
+            if (oOperation ==="notset"){
+                oOperation ="";
+           
+            }
+
             var oModelData = {
-                podType: sPodType,
-                inputType: oPodSelectionModel.getInputType(),
-                workCenter: oPodSelectionModel.getWorkCenter(),
-                operation: "",
-                resource: sResource,
-                selectionCount: iSelectionCount,
-                operationCount: iOperationCount,
-                selections: aInputs,
-                orderselect: sShopOrder,
-                operations: aOperations,
-                notificationsEnabled: bNotificationsEnabled,
-                notificationMessage: "",
+                podType: sPodType, 
+                inputType: oInputType, 
+                workCenter: oWorkCenter, 
+                operation: oOperation, 
+                resource: sResource, 
+                selectionCount: iSelectionCount, 
+                operationCount: iOperationCount, 
+                selections: aInputs, 
+                orderselect: sShopOrder, 
+                operations: aOperations, 
+                notificationsEnabled: bNotificationsEnabled, 
+                notificationMessage: "", 
                 //Not needed for lutron but i leave it in.
-                materialCustomFields: aMaterialCustomFields,
-                wrklstrow: wrklstcurrentsel,
+                materialCustomFields: aMaterialCustomFields, 
+                wrklstrow: wrklstcurrentsel, 
+                material:"",
                 startableSFCs: []
             };
 
@@ -619,11 +803,15 @@ sap.ui.define([
             }
             // add material custom fields to model
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
-            //oLogger.info("oModelData.wrllstrow :-> : " + JSON.stringify(oModelData.wrklstrow));
+           
             var oModel = new JSONModel(oModelData);
-            this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs));
+            this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs),oModelData.operation);
 
             // Set the model for the View with the gathered info
+            // if we have aInputs we want to set in the model the first material 
+            // for the Lutron plugin
+                oModelData.material = aInputs.length ? aInputs[0].material : "";
+               
             oView.setModel(oModel);
         },
 
