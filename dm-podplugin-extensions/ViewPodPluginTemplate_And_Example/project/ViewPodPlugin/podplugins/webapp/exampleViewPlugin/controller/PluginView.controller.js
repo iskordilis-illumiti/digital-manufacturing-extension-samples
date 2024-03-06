@@ -6,6 +6,9 @@ sap.ui.define([
     "sap/base/Log"
 ], function (JSONModel, Fragment, PluginViewController, Log) {
     "use strict";
+    //TODO Break this into multiple modules with well defined dependencies
+    // Then import into this main module for the plugin
+    //TODO convert promise "then" chaining into async , wait structure
 
     var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO);
     //------------------------------------------------------------------------
@@ -41,7 +44,7 @@ const COMPLETE_ORDER_DONE=8;
 
 
     //HIDE CODE  for debug    
-    const EXECUTE_CODE = false;
+    const EXECUTE_CODE = true;
     const ENABLE_NTFCMSG = false;
     //USE ENABLE_PROMISE to use promise.all to resolve all promises that
     // are called in a loop as in case of getting the SFC status.
@@ -102,6 +105,7 @@ const COMPLETE_ORDER_DONE=8;
         },
 
         onPodSelectionChangeEvent: function (sChannelId, sEventId, oData) {
+            console.log("PodSelectionChangeEvent");
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -110,6 +114,7 @@ const COMPLETE_ORDER_DONE=8;
         },
 
         onOperationChangeEvent: function (sChannelId, sEventId, oData) {
+            console.log("OperationChange Event");
             var p = 10; //just to put a breakpoint
             //oLogger.info("onOperationChangeEvent: " + JSON.stringify(oData));
             // don't process if same object firing event
@@ -128,7 +133,7 @@ const COMPLETE_ORDER_DONE=8;
             //get the data from the worklist selection row into wklstcurrentsel
             //get the operation into wrklstsopersel
                 wrklstcurrentsel = oData;
-                wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "non";
+                wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
            
            
             //this._glbstartableSFCObj._glbAdd(wrklstcurrentsel);
@@ -156,8 +161,9 @@ const COMPLETE_ORDER_DONE=8;
                 
                     oLogger.info(param0 + " : " + "Globals->  wrklstcurrentsel: " + 
                                                         this._getWorkListSelectedRowDataGlb()+
-                                                        "  wrklstsopersel: " +
-                                                         wrklstsopersel+"  param:",param);
+                                                            "  wrklstsopersel: " +
+                                                             wrklstsopersel+
+                                                            "  param:",param);
                 
                 
             } catch (error) {
@@ -166,13 +172,14 @@ const COMPLETE_ORDER_DONE=8;
                 // the statement below gets the the full json model in
                 //javascript format.
                 //for a breakpoint in the debugger
+                //TODO remove eventually
                 var theModel = this.getView().getModel().getData();
             }
         },
         //-------- getStartableSFCS --------------------
         // filter the passed sfcs from the selected order
         // to only sfcs that are appropriate for starting
-        // these means only the ones that have status of NEW or InQue
+        // this means only the ones that have status of NEW or InQueue
         // @input sfcstofilter  has all the sfcs in the order
         //-----------------------------------------------------------
 
@@ -314,8 +321,50 @@ const COMPLETE_ORDER_DONE=8;
             return oResponseData;
 
         },
-        //--------------------- End classificationRead ------------------------
+        //--------------------- End classificationRead ---------------
 
+    //--
+    //------------------  completeOrderSfcs ------------------
+    completeOrderSfcs : async function (psfcs){
+        var sUrl=this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
+        var sfcplant = this.getPodController().getUserPlant();
+        var sfcOperation = this._getWorkListSelectedOperationGlb(); 
+            var sfcResource = this.getPodSelectionModel().getResource().getResource();
+        
+    
+
+
+        var ssfcParameters={
+            plant:sfcplant,
+            operation:sfcOperation,
+            resource:sfcResource,
+            sfcs:psfcs
+            //,processLot:"""
+
+            
+            
+        }
+        var that=this;
+        var oResponseData = await new Promise((resolve, reject) => {
+            this.ajaxPostRequest(
+                sUrl,
+                ssfcParameters,
+                function (oResponseData) {
+                    that.showSuccessMessage("complete done", true);
+                    //oLogger.info("compolete success");
+                    resolve(oResponseData);
+                },
+                //The error call back for the /classification/v1/read
+                function (oError, sHttpErrorMessage) {
+                    oLogger.info("Complete  API call failed "   + sHttpErrorMessage);
+                    that.showErrorMessage(oError, true);
+                    reject(oError);
+                })
+        });
+        return oResponseData;
+
+    },
+    //-----------------------End CompleteOrderSfcs -----------------
 
         //---
         // --------------------- startAllSfcs----------------
@@ -431,12 +480,49 @@ const COMPLETE_ORDER_DONE=8;
                 }.bind(this));
             } else {
                 this._oDialog.open();
-            }
+            } //--
         },
         
         //----------------- End Validate Components ----------
         onValidatePressed: function (evt) {
+            var howManyMatched =0;
             this.showSuccessMessage("Validate button pressed");
+            var scannedOrEntered=this.byId("componentInput").getValue();
+            var oTable=this.byId("Vcomp");
+            var nRows=oTable.getItems();
+            if (scannedOrEntered){
+                for (var i=0;i<=nRows.lenth; i++){
+
+                    var cellValue = nRows[i].getCells().getText();
+                    if (cellValue === scannedOrEntered){
+                        console.log("cell value ="+cellValue+" to matech :"+scannedOrEntered);
+                        nRows[i].addStyleClass("markFound");
+                        nRows[i].getCells[2].setText["Y"];
+                        howManyMatched++;
+
+                    }else {
+                        this.showErrorMessage("Validation failed click ok to abort");
+
+                        this.byId("dcomponentValidator").close();
+                        return "vfail";
+
+                    }
+                }
+
+                if (howManyMatched === nRows.length) {
+                    // Close the dialog and return a success indication
+                    this.byId("Vcomp").close();
+                    return "Success";
+                } else if (0) { // Replace this with your condition to check if the user aborts
+                    // Close the dialog and return an abort value
+                    this.byId("dcomponentValidator").close();
+                    return "Abort";
+                }
+
+
+            }else {
+
+            }
         },
 
         onCompleteComponents: function(evt){
@@ -449,6 +535,7 @@ const COMPLETE_ORDER_DONE=8;
 
         },
         stateMachineLutronProcess: function ( state){
+            
            
             var currentLPState= state ? state: LPNS;
 
@@ -484,8 +571,10 @@ const COMPLETE_ORDER_DONE=8;
                 break;
             case START_ORDER_DONE:
                 ButtonSO.setEnabled(true);
-                ButtonSO.setText(buttonSoText);
+                ButtonSO.setText("Start Order");
                 currentLPState=START_ORDER_DONE;
+                //ButtonVC.setText("Validate Component working ...");
+                ButtonVC.setEnabled(true);
 
 
 
@@ -525,18 +614,18 @@ const COMPLETE_ORDER_DONE=8;
         // -----------------------------------------
 
         onStartOrder: function (evt) {
-            var oButtonSO=evt.getSource();
+            var oButtonSO = evt.getSource();
             this._debugGlb("onStartOrder ");
             //check to see if a selection have been made
-            var oOp=this._getWorkListSelectedOperationGlb();
-            if (oOp ==="notset"){
+            var oOp = this._getWorkListSelectedOperationGlb();
+            if (oOp === "notset") {
                 this.showErrorMessage("Order is not selected", true);
                 return;
             } else {
-                 //set the Busy indicator to the startOrders Button.
+                //set the Busy indicator to the startOrders Button.
 
                 oButtonSO.setBusy(true);
-                this.stateMachineLutronProcess( START_ORDER_WORKING);                
+                this.stateMachineLutronProcess(START_ORDER_WORKING);
             }
 
             //get the Order from the label box 
@@ -564,7 +653,7 @@ const COMPLETE_ORDER_DONE=8;
                 sUrl,
                 oParameters,
                 function (oResponseData) { //Orders response
-                    that._debugGlb("Order response reched");
+                    that._debugGlb("Order response reached");
 
                     var sfcUrl = that.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
                     var sfcplant = that.getPodController().getUserPlant();
@@ -573,8 +662,8 @@ const COMPLETE_ORDER_DONE=8;
                     var sfcSfcs = oResponseData["sfcs"];
 
                     // check getStartableSFCS and get in the list (filteredsfcs) only the ones that can be started.
-                    
-                        console.log("unfileterd sfcs count = "+sfcSfcs.length);
+
+                    console.log("unfileterd sfcs count = " + sfcSfcs.length);
                     var filteredsfcs = {};
                     if (!ENABLE_PROMISE_ALL) {
                         filteredsfcs = that.getStartableSFCS(sfcplant, sfcSfcs);
@@ -583,25 +672,33 @@ const COMPLETE_ORDER_DONE=8;
                         filteredsfcs = that.filterStartableSFCs(sfcSfcs);
                     }
 
-    
-                   
+
+
                     // validatedfcs contains the filtered sfcs (new,inqueue)
                     // below in the ssfcParameters.sfcs
-                    let totalSfcProcecesed = 0;   
+                    let totalSfcProcecesed = 0;
+
+                    //--- TOP level then chain ---------------------
                     filteredsfcs.then(validatedsfcs => {
                         console.log(validatedsfcs);
                         let vlength = validatedsfcs.length;
+                        if (vlength==0){
+                            that.showErrorMessage("Nothing to Start");
+                            return;
+                        
+
+                        }
                         console.log("validated sfcs lentgh" + vlength);
 
                         // Split the sfc list of validated sfcs
                         // to chuncks of CFCS_CHUNK
                         // and call start with one chunk of SFCs at a time.
-                      
+
                         for (let i = 0; i < vlength; i += SFCS_CHUNK) {
-                            let startSFCChunk = validatedsfcs.slice(i , i+=SFCS_CHUNK);
+                            let startSFCChunk = validatedsfcs.slice(i, i += SFCS_CHUNK);
                             //we have a bunch of startable sfcs here in 
 
-                            console.log("chunck = "+startSFCChunk.length);
+                            console.log("chunck = " + startSFCChunk.length);
                             var ssfcParameters = {
                                 plant: sfcplant,
                                 operation: sfcOperation,
@@ -612,13 +709,14 @@ const COMPLETE_ORDER_DONE=8;
                             }
                             that._debugGlb("onStartOrder: before PostRequest ");
                             //--------------------ajaxPostRequest /sfc/v1/sfcs ------------
-                            if (EXECUTE_CODE) {
+                            if (EXECUTE_CODE) { //remove line
                                 that.ajaxPostRequest(
                                     sfcUrl,
                                     ssfcParameters,
                                     function (oResponseData) {
                                         that.showSuccessMessage("Order Started succesfully!", true);
                                         //oLogger.info("Orderstart success");
+                                        that.stateMachineLutronProcess(START_ORDER_DONE);
 
                                     },
                                     //The error call back for the /sfc/sfcs/start API call
@@ -627,35 +725,47 @@ const COMPLETE_ORDER_DONE=8;
                                         that.showErrorMessage(oError, true);
                                     }
                                 );   //close parenthesis for the Post call (sfs/sfcs/start)
-                            }
-                            else {
+                            } // remove 
+                            else { // -- remove line 
                                 //debug section will not run when EXECUTE_CODE ==TRUE
                                 console.log("-- ajaPostRequest bypassed");
-                                console.log("to start="+ startSFCChunk.length);
+                                console.log("to start=" + startSFCChunk.length);
                                 //validate components here and subsequently complete
-                                that.stateMachineLutronProcess(START_ORDER_DONE);
-                                var clresult=that.classificationRead();
-                                clresult.then( cl =>{
+
+                                var clresult = that.classificationRead();
+                                //--------------  second level Then chain --------------------------
+                                clresult.then(cl => {
                                     console.log(cl);
+                                    var vc = that.onValidateComponents();
+                                    //chain here the complete
+                                    var compresult = that.completeOrderSfcs();
+                                    compresult.then(compsfcs => {
+                                        console.log(compsfcs)
+
+                                    });
+
 
                                 });
-                                that.onValidateComponents();
-                            }
+                                // ----- end second level then chain 
+
+
+                            } // -- remove 
                         }
                     }
                         //Inside then
                     );
-                },
+                    // ------  End top level then chain 
+                },//--- End Response from start Order block
                 //the error callback for the /Order API call
                 function (oError, sHttpErrorMessage) {
                     oLogger.info("Errors " + sHttpErrorMessage);
                 });
-        // Hide theBusy operator       
-        oButtonSO.setBusy(false);
+            // Hide theBusy operator       
+            oButtonSO.setBusy(false);
 
             // This might have side effect
             // so comment out for now.
-            //this.loadModel();
+            this.loadModel();
         },
         //----  End Lutron Start Order ---------
 

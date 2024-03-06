@@ -1,4 +1,8 @@
 /* Lutron Plugin styles*/
 .lutronpluginPanelBorder {
-    border: 2px solid rgb(15, 124, 240);
+    border: 1px solid rgb(15, 124, 240);
+}
+
+.markFound {
+    background-color: yellow;
 }
