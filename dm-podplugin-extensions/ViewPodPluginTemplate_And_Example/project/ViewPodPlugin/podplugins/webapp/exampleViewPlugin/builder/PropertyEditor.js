@@ -4,7 +4,9 @@ sap.ui.define([
     "use strict";
 
     var oPropertyEditor = PropertyEditor.extend("illumiti.ext.viewplugins.exampleViewPlugin.builder.PropertyEditor", {
+        
         constructor: function (sId, mSettings) {
+            console.log("constuctor Property Editor");
             PropertyEditor.apply(this, arguments);
             this.setI18nKeyPrefix("exampleViewPlugin.");
             this.setResourceBundleName("illumiti.ext.viewplugins.exampleViewPlugin.i18n.builder");

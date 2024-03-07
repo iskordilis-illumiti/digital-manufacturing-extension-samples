@@ -2,7 +2,15 @@
 .lutronpluginPanelBorder {
     border: 1px solid rgb(15, 124, 240);
 }
-
+/* To highlight the component is a component list that is validated*/
 .markFound {
     background-color: yellow;
 }
+/* the color of the signoff button - debug only */
+.signoff-color {
+    background-color: rgb(255, 153, 0) !important;
+    color:white !important;
+}
+
+
+

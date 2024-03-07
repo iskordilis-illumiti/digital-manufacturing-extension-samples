@@ -176,6 +176,308 @@ const COMPLETE_ORDER_DONE=8;
                 var theModel = this.getView().getModel().getData();
             }
         },
+        /********************************* DM APIS
+         * 
+         * @param {*} plant 
+         * @param {*} sfcstofilter 
+         */
+          //--------------------- SignOFSfcs --------------
+    signOffSfcs : async function (psfcs){
+        var sUrl=this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/signoff?async=false";
+        var sfcplant = this.getPodController().getUserPlant();
+        var sfcOperation = this._getWorkListSelectedOperationGlb(); 
+        var sfcResource = this.getPodSelectionModel().getResource().getResource();
+        
+            var oView=this.getView();
+            var oModel=oView.getModel();
+            var oOrder=oModel.getProperty('/orderselect');
+        //theOrder=this.getView().getModel().getProperty('/orderselect');
+        console.log(`order: ${oOrder}`);
+    
+
+
+        var ssfcParameters={
+            plant:sfcplant,
+            operation:sfcOperation,
+            resource:sfcResource,
+            //sfcs:psfcs
+            sfcs:null,
+            processLot:null
+            // dateTime:""
+
+            
+            
+        }
+        var that=this;
+        var oResponseData = await new Promise((resolve, reject) => {
+            this.ajaxPostRequest(
+                sUrl,
+                ssfcParameters,
+                function (oResponseData) {
+                    that.showSuccessMessage("Signoff done", true);
+                    //oLogger.info("compolete success");
+                    resolve(oResponseData);
+                },
+                //The error call back for the /classification/v1/read
+                function (oError, sHttpErrorMessage) {
+                    oLogger.info("Signoff   API call failed "   + sHttpErrorMessage);
+                    that.showErrorMessage(oError, true);
+                    reject(oError);
+                })
+        });
+        return oResponseData;
+
+
+    },
+
+     /**
+     * 
+     * @returns a promise that if resolved contains the components
+     *  for the sfc in the selection Model and plant
+     * In summary this function should be used inside POD Plugins only
+     * the resolved promise result is of the format of an array
+     * [
+     *      {
+     *          component:'value text',
+     *          componentVersion    :'component version text',
+     *          componentDescription:'ComponentDescription text',
+     *          operationActivity   :'operation Activity text',
+     *          plant               :'plant text'
+     *      },
+     *      {
+     *      },
+     *      .
+     *      .
+     * ]
+     * 
+     * ]
+     * 
+     */
+     getComponentsForSfc: async function() {
+        var oResponseData = await new Promise((resolve, reject) => {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
+            var selection = this.getPodSelectionModel().getSelections();
+            var thesfc = selection[0].getSfc().getSfc();
+            var thePlant=this.getPodController().getUserPlant();
+
+            if (!thePlant || !thePlant){
+                console.log("we have not made a selection")
+                return;
+            }
+
+            var params = {
+                plant: thePlant,
+                sfc: thesfc
+            }
+            this.ajaxGetRequest(sUrl, params, function(oResponseData) {
+                resolve(oResponseData);
+            }, function(Error) {
+                reject(Error);
+            });
+        });
+        return oResponseData;
+    },
+     // --
+        //  SfcStatusIsStartable wraps the calls to sfc/detail API in a promise
+        // -- and makes it possible to use asyc - wait 
+        // 
+        // Returns a promise that has true if the passed sfc is startable
+        // false if it is not
+
+        getSfcStatusIsStartable: async function (thesfc) {
+            var theplant = this.getPodController().getUserPlant();
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
+            var params = {
+                plant: theplant,
+                sfc: thesfc
+            }
+            var that = this;
+
+            var oResponseData = await new Promise((resolve, reject) => {
+                that.ajaxGetRequest(sUrl, params, function (oResponseData) {
+                    var code = oResponseData.status.code;
+                    var sfcWithCodeStartable = (code == SFCS_NEW || code == SFCS_INQUE) ? oResponseData.sfc : "";
+                    var goodToStart = (code == SFCS_NEW || code == SFCS_INQUE) ? true : false
+                    // we want to push this to the model
+
+                    var tm = that.getView().getModel().getProperty("/startableSFCs");
+
+                    if (sfcWithCodeStartable) {
+                        tm.push(sfcWithCodeStartable);
+                        that.getView().getModel().setProperty("/startableSFCs", tm);
+                        that._debugGlb("Setting tm in the model after validate called", tm);
+                    }
+                    var result = tm;
+                    if (!ENABLE_PROMISE_ALL) {
+                        resolve(result);
+                    } else {
+                        resolve(goodToStart);
+                    }
+                }, function (Error, sHttpErrorMessage) {
+                    reject(Error);
+                });
+            });
+            return oResponseData;
+        },
+        // ------------------ End getSfcStatusIsStartable --------
+        //--
+        //---------------------- classificationRead -----------------
+        classificationRead: async function(imaterial) {
+            var sUrl=this.getPublicApiRestDataSourceUri() + "/classification/v1/read";
+            var sfcplant = this.getPodController().getUserPlant();
+            var oObjectKeys=[];
+            if (imaterial){
+                oObjectKeys.push(imaterial);
+            } else {
+                var pmaterial=this.getView().getModel().getProperty("/material");
+                oObjectKeys.push(pmaterial);
+                console.log("ObjectKeyss="+oObjectKeys);
+            }
+
+
+            var ssfcParameters={
+                plant:sfcplant,
+                objectKeys:oObjectKeys,
+                objectType:"MATERIAL", //Material
+                classType:"001"
+                //,classes:[""]//
+                
+            }
+            var that=this;
+            var oResponseData = await new Promise((resolve, reject) => {
+                this.ajaxPostRequest(
+                    sUrl,
+                    ssfcParameters,
+                    function (oResponseData) {
+                        that.showSuccessMessage("classication called  succesfully!", true);
+                        //oLogger.info("classification call success");
+                        resolve(oResponseData);
+                    },
+                    //The error call back for the /classification/v1/read
+                    function (oError, sHttpErrorMessage) {
+                        oLogger.info("Classsication API call failed "   + sHttpErrorMessage);
+                        that.showErrorMessage(oError, true);
+                        reject(oError);
+                    })
+            });
+            return oResponseData;
+
+        },
+        //--------------------- End classificationRead ---------------
+
+        //--
+    //------------------  completeOrderSfcs ------------------
+    completeOrderSfcs : async function (psfcs){
+        var sUrl=this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
+        var sfcplant = this.getPodController().getUserPlant();
+        var sfcOperation = this._getWorkListSelectedOperationGlb(); 
+            var sfcResource = this.getPodSelectionModel().getResource().getResource();
+        
+    
+
+
+        var ssfcParameters={
+            plant:sfcplant,
+            operation:sfcOperation,
+            resource:sfcResource,
+            sfcs:psfcs
+            //,processLot:"""
+
+            
+            
+        }
+        var that=this;
+        var oResponseData = await new Promise((resolve, reject) => {
+            this.ajaxPostRequest(
+                sUrl,
+                ssfcParameters,
+                function (oResponseData) {
+                    that.showSuccessMessage("complete done", true);
+                    //oLogger.info("compolete success");
+                    resolve(oResponseData);
+                },
+                //The error call back for the /classification/v1/read
+                function (oError, sHttpErrorMessage) {
+                    oLogger.info("Complete  API call failed "   + sHttpErrorMessage);
+                    that.showErrorMessage(oError, true);
+                    reject(oError);
+                })
+        });
+        return oResponseData;
+
+    },
+    //-----------------------End CompleteOrderSfcs -----------------
+
+ //---
+        // --------------------- startAllSfcs----------------
+        // It starts all sfcs in the passed array at Plant ,Operation , quantity and Resource
+        // It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402))
+        // It returns a Promise with all the started sfcs if succesfull
+
+        startAllSfcs: async function (
+            sOperation,
+            sPlant,
+            sResource,
+            sQuantity,
+            sSfcs) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
+            //var sfcplant = this.getPodController().getUserPlant();
+            //var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
+            //var sfcResource = this.getPodSelectionModel().getResource().getResource();
+
+            var ssfcParameters = {
+                plant: sPlant,
+                operation: sOperation,
+                quantity: 1, //TODO find the quantity 
+                resource: sResource,
+                sfcs: sSfcs //,
+                // processLot:""
+            }
+
+            var oResponseData = await new Promise((resolve, reject) => {
+                this.ajaxPostRequest(
+                    sUrl,
+                    ssfcParameters,
+                    function (oResponseData) {
+                        that.showSuccessMessage("Order Started succesfully!", true);
+                        //oLogger.info("Orderstart success");
+                        resolve(oResponseData);
+                    },
+                    //The error call back for the /sfc/sfcs/start API call
+                    function (oError, sHttpErrorMessage) {
+                        oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
+                        that.showErrorMessage(oError, true);
+                        reject(oError);
+                    })
+            });
+            return oResponseData;
+        },
+        // ----- End startAllSfcs async
+
+        
+        
+
+    /**               END DM APIs
+     * 
+     *
+     * 
+     */
+
+
+
+
+    onSignOffComponents: function (evt) {
+        console.log("Validate button pressed");
+        var signoffpromise = this.signOffSfcs();
+        signoffpromise.then(result => {
+            console.log("signoff done");
+        }).catch(error => {
+            console.log("Error in signoff components");
+        });
+    },
+
+
+
         //-------- getStartableSFCS --------------------
         // filter the passed sfcs from the selected order
         // to only sfcs that are appropriate for starting
@@ -234,183 +536,10 @@ const COMPLETE_ORDER_DONE=8;
                 });
         },
 
-        // --
-        //  SfcStatusIsStartable wraps the calls to sfc/detail API in a promise
-        // -- and makes it possible to use asyc - wait 
-        // 
-        // Returns a promise that has true if the passed sfc is startable
-        // false if it is not
-
-        getSfcStatusIsStartable: async function (thesfc) {
-            var theplant = this.getPodController().getUserPlant();
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
-            var params = {
-                plant: theplant,
-                sfc: thesfc
-            }
-            var that = this;
-
-            var oResponseData = await new Promise((resolve, reject) => {
-                that.ajaxGetRequest(sUrl, params, function (oResponseData) {
-                    var code = oResponseData.status.code;
-                    var sfcWithCodeStartable = (code == SFCS_NEW || code == SFCS_INQUE) ? oResponseData.sfc : "";
-                    var goodToStart = (code == SFCS_NEW || code == SFCS_INQUE) ? true : false
-                    // we want to push this to the model
-
-                    var tm = that.getView().getModel().getProperty("/startableSFCs");
-
-                    if (sfcWithCodeStartable) {
-                        tm.push(sfcWithCodeStartable);
-                        that.getView().getModel().setProperty("/startableSFCs", tm);
-                        that._debugGlb("Setting tm in the model after validate called", tm);
-                    }
-                    var result = tm;
-                    if (!ENABLE_PROMISE_ALL) {
-                        resolve(result);
-                    } else {
-                        resolve(goodToStart);
-                    }
-                }, function (Error, sHttpErrorMessage) {
-                    reject(Error);
-                });
-            });
-            return oResponseData;
-        },
-        // ------------------ End getSfcStatusIsStartable --------
-
-        //--
-        //---------------------- classificationRead -----------------
-        classificationRead: async function(imaterial) {
-            var sUrl=this.getPublicApiRestDataSourceUri() + "/classification/v1/read";
-            var sfcplant = this.getPodController().getUserPlant();
-            var oObjectKeys=[];
-            if (imaterial){
-                oObjectKeys.push(imaterial);
-            } else {
-                var pmaterial=this.getView().getModel().getProperty("/material");
-                oObjectKeys.push(pmaterial);
-                console.log("ObjectKeyss="+oObjectKeys);
-            }
-
-
-            var ssfcParameters={
-                plant:sfcplant,
-                objectKeys:oObjectKeys,
-                objectType:"MATERIAL", //Material
-                classType:"001"
-                //,classes:[""]//
-                
-            }
-            var that=this;
-            var oResponseData = await new Promise((resolve, reject) => {
-                this.ajaxPostRequest(
-                    sUrl,
-                    ssfcParameters,
-                    function (oResponseData) {
-                        that.showSuccessMessage("classication called  succesfully!", true);
-                        //oLogger.info("classification call success");
-                        resolve(oResponseData);
-                    },
-                    //The error call back for the /classification/v1/read
-                    function (oError, sHttpErrorMessage) {
-                        oLogger.info("Classsication API call failed "   + sHttpErrorMessage);
-                        that.showErrorMessage(oError, true);
-                        reject(oError);
-                    })
-            });
-            return oResponseData;
-
-        },
-        //--------------------- End classificationRead ---------------
-
-    //--
-    //------------------  completeOrderSfcs ------------------
-    completeOrderSfcs : async function (psfcs){
-        var sUrl=this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
-        var sfcplant = this.getPodController().getUserPlant();
-        var sfcOperation = this._getWorkListSelectedOperationGlb(); 
-            var sfcResource = this.getPodSelectionModel().getResource().getResource();
+       
         
     
-
-
-        var ssfcParameters={
-            plant:sfcplant,
-            operation:sfcOperation,
-            resource:sfcResource,
-            sfcs:psfcs
-            //,processLot:"""
-
-            
-            
-        }
-        var that=this;
-        var oResponseData = await new Promise((resolve, reject) => {
-            this.ajaxPostRequest(
-                sUrl,
-                ssfcParameters,
-                function (oResponseData) {
-                    that.showSuccessMessage("complete done", true);
-                    //oLogger.info("compolete success");
-                    resolve(oResponseData);
-                },
-                //The error call back for the /classification/v1/read
-                function (oError, sHttpErrorMessage) {
-                    oLogger.info("Complete  API call failed "   + sHttpErrorMessage);
-                    that.showErrorMessage(oError, true);
-                    reject(oError);
-                })
-        });
-        return oResponseData;
-
-    },
-    //-----------------------End CompleteOrderSfcs -----------------
-
-        //---
-        // --------------------- startAllSfcs----------------
-        // It starts all sfcs in the passed array at Plant ,Operation , quantity and Resource
-        // It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402))
-        // It returns a Promise with all the started sfcs if succesfull
-
-        startAllSfcs: async function (
-            sOperation,
-            sPlant,
-            sResource,
-            sQuantity,
-            sSfcs) {
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
-            //var sfcplant = this.getPodController().getUserPlant();
-            //var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
-            //var sfcResource = this.getPodSelectionModel().getResource().getResource();
-
-            var ssfcParameters = {
-                plant: sPlant,
-                operation: sOperation,
-                quantity: 1, //TODO find the quantity 
-                resource: sResource,
-                sfcs: sSfcs //,
-                // processLot:""
-            }
-
-            var oResponseData = await new Promise((resolve, reject) => {
-                this.ajaxPostRequest(
-                    sUrl,
-                    ssfcParameters,
-                    function (oResponseData) {
-                        that.showSuccessMessage("Order Started succesfully!", true);
-                        //oLogger.info("Orderstart success");
-                        resolve(oResponseData);
-                    },
-                    //The error call back for the /sfc/sfcs/start API call
-                    function (oError, sHttpErrorMessage) {
-                        oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
-                        that.showErrorMessage(oError, true);
-                        reject(oError);
-                    })
-            });
-            return oResponseData;
-        },
-        // ----- End startAllSfcs async
+       
 
         ComponentAPISucsess: function (oResponseData) {
             var result = oResponseData;
@@ -839,6 +968,7 @@ const COMPLETE_ORDER_DONE=8;
                         sShopOrder = ""; 
                         if (aSelections[i].getShopOrder()) {
                             sShopOrder = aSelections[i].getShopOrder().getShopOrder();
+
                             // Store shop order in selectedOrder will be used in Model and the View
                             //Only store the first order selected , ignore the others in multiselection
                             //Situation.
@@ -1010,8 +1140,11 @@ const COMPLETE_ORDER_DONE=8;
         },
 
         configureNavigationButtons: function (oConfiguration) {
+
             if (!this.isPopup() && !this.isDefaultPlugin()) {
+                console.log("configureNavigationButtons in the if");
                 this.byId("closeButton").setVisible(oConfiguration.closeButtonVisible);
+                console.log("configureNavigationButtons outside the if");
             }
         }
     });
