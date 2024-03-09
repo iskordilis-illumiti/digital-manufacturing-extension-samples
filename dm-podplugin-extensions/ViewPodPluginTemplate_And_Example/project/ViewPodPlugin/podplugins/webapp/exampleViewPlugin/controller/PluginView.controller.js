@@ -20,27 +20,28 @@ sap.ui.define([
 
     var wrklstcurrentsel = {}, wrklstsopersel = "notset";
     var glbStack = [];
-    // TODO temporary to debug and until I fix View Model 
+    // TODO temporary to debug and until a release version
     // Bad practice
+    //TODO Make sure this is fixed before the release of the plugin
     var _glbstartableSFCObj = {
         _sfcGoodToStart: [],
         _glbGetsfcGoodToStart: function () { return this._sfcGoodToStart },
-        _glbAdd: function (sObj) {this._sfcGoodToStart.push(sObj) },
+        _glbAdd: function (sObj) { this._sfcGoodToStart.push(sObj) },
         _glbErase: function () { this._sfcGoodToStart = [] },
         _glbSet: function (sobj) { this._sfcGoodToStart = sobj },
     }
 
-//Simple state machine nodes for the Lutron plugin
-const LPNS=-1;
-const INIT_LP =0;
-const START_ORDER_ON=1;
-const START_ORDER_WORKING=2;
-const START_ORDER_DONE=3;
-const VALIDATE_COMP_ON=4;
-const VALIDATE_COMP_DONE=5;
-const COMPLETE_ORDER_ON=6;
-const COMPLETE_ORDER_WORKING=7;
-const COMPLETE_ORDER_DONE=8;
+    //Simple state machine nodes for the Lutron plugin
+    const LPNS = -1;
+    const INIT_LP = 0;
+    const START_ORDER_ON = 1;
+    const START_ORDER_WORKING = 2;
+    const START_ORDER_DONE = 3;
+    const VALIDATE_COMP_ON = 4;
+    const VALIDATE_COMP_DONE = 5;
+    const COMPLETE_ORDER_ON = 6;
+    const COMPLETE_ORDER_WORKING = 7;
+    const COMPLETE_ORDER_DONE = 8;
 
 
     //HIDE CODE  for debug    
@@ -50,7 +51,7 @@ const COMPLETE_ORDER_DONE=8;
     // are called in a loop as in case of getting the SFC status.
     const ENABLE_PROMISE_ALL = true;
 
-    const SFCS_CHUNK = 499;  //dont make this greater than 499 for calling sfc/sfcs/start
+    const SFCS_CHUNK = 499;  //dont make this greater than 499 for calling sfc/sfcs/start - move to POD Designer.
     const SFCS_NEW = 401;
     const SFCS_INQUE = 402;
 
@@ -60,7 +61,7 @@ const COMPLETE_ORDER_DONE=8;
         metadata: {
             properties: {
             }
-        },
+        }, 
 
         onInit: function () {
             if (PluginViewController.prototype.onInit) {
@@ -132,12 +133,12 @@ const COMPLETE_ORDER_DONE=8;
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             //get the data from the worklist selection row into wklstcurrentsel
             //get the operation into wrklstsopersel
-                wrklstcurrentsel = oData;
-                wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
-           
-           
+            wrklstcurrentsel = oData;
+            wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
+
+
             //this._glbstartableSFCObj._glbAdd(wrklstcurrentsel);
-          
+
             this.stateMachineLutronProcess(START_ORDER_ON);
 
             // don't process if same object firing event
@@ -153,19 +154,20 @@ const COMPLETE_ORDER_DONE=8;
         _getWorkListSelectedRowDataGlb: function () {
             return wrklstcurrentsel;
         },
-        _debugGlb: function (m,b) {
-          
+        //TODO this needs fixing is not working as it should 
+        _debugGlb: function (m, b) {
+
             try {
-                var param=b ? b :"";
-                var param0=m ? m: "info:"
-                
-                    oLogger.info(param0 + " : " + "Globals->  wrklstcurrentsel: " + 
-                                                        this._getWorkListSelectedRowDataGlb()+
-                                                            "  wrklstsopersel: " +
-                                                             wrklstsopersel+
-                                                            "  param:",param);
-                
-                
+                var param = b ? b : "";
+                var param0 = m ? m : "info:"
+
+                oLogger.info(param0 + " : " + "Globals->  wrklstcurrentsel: " +
+                    this._getWorkListSelectedRowDataGlb() +
+                    "  wrklstsopersel: " +
+                    wrklstsopersel +
+                    "  param:", param);
+
+
             } catch (error) {
                 oLogger.info("Error which is (propably circular dependency ):", Error);
             } finally {
@@ -176,108 +178,109 @@ const COMPLETE_ORDER_DONE=8;
                 var theModel = this.getView().getModel().getData();
             }
         },
-        /********************************* DM APIS
+        /****************************************************************
          * 
-         * @param {*} plant 
-         * @param {*} sfcstofilter 
-         */
-          //--------------------- SignOFSfcs --------------
-    signOffSfcs : async function (psfcs){
-        var sUrl=this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/signoff?async=false";
-        var sfcplant = this.getPodController().getUserPlant();
-        var sfcOperation = this._getWorkListSelectedOperationGlb(); 
-        var sfcResource = this.getPodSelectionModel().getResource().getResource();
-        
-            var oView=this.getView();
-            var oModel=oView.getModel();
-            var oOrder=oModel.getProperty('/orderselect');
-        //theOrder=this.getView().getModel().getProperty('/orderselect');
-        console.log(`order: ${oOrder}`);
-    
+         *                  APIs DM and Derivatives
+         *
+         *****************************************************************/
 
+        //--------------------- SignOFSfcs -------------------------------
+        signOffSfcs: async function (psfcs) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/signoff?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+            var sfcOperation = this._getWorkListSelectedOperationGlb();
+            var sfcResource = this.getPodSelectionModel().getResource().getResource();
 
-        var ssfcParameters={
-            plant:sfcplant,
-            operation:sfcOperation,
-            resource:sfcResource,
-            //sfcs:psfcs
-            sfcs:null,
-            processLot:null
-            // dateTime:""
+            var oView = this.getView();
+            var oModel = oView.getModel();
+            var oOrder = oModel.getProperty('/orderselect');
+            //theOrder=this.getView().getModel().getProperty('/orderselect');
+            console.log(`order: ${oOrder}`);
 
-            
-            
-        }
-        var that=this;
-        var oResponseData = await new Promise((resolve, reject) => {
-            this.ajaxPostRequest(
-                sUrl,
-                ssfcParameters,
-                function (oResponseData) {
-                    that.showSuccessMessage("Signoff done", true);
-                    //oLogger.info("compolete success");
-                    resolve(oResponseData);
-                },
-                //The error call back for the /classification/v1/read
-                function (oError, sHttpErrorMessage) {
-                    oLogger.info("Signoff   API call failed "   + sHttpErrorMessage);
-                    that.showErrorMessage(oError, true);
-                    reject(oError);
-                })
-        });
-        return oResponseData;
-
-
-    },
-
-     /**
-     * 
-     * @returns a promise that if resolved contains the components
-     *  for the sfc in the selection Model and plant
-     * In summary this function should be used inside POD Plugins only
-     * the resolved promise result is of the format of an array
-     * [
-     *      {
-     *          component:'value text',
-     *          componentVersion    :'component version text',
-     *          componentDescription:'ComponentDescription text',
-     *          operationActivity   :'operation Activity text',
-     *          plant               :'plant text'
-     *      },
-     *      {
-     *      },
-     *      .
-     *      .
-     * ]
-     * 
-     * ]
-     * 
-     */
-     getComponentsForSfc: async function() {
-        var oResponseData = await new Promise((resolve, reject) => {
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
-            var selection = this.getPodSelectionModel().getSelections();
-            var thesfc = selection[0].getSfc().getSfc();
-            var thePlant=this.getPodController().getUserPlant();
-
-            if (!thePlant || !thePlant){
-                console.log("we have not made a selection")
-                return;
+            var ssfcParameters = {
+                plant: sfcplant,
+                operation: sfcOperation,
+                resource: sfcResource,
+                //sfcs:psfcs
+                sfcs: null,
+                processLot: null
+                // dateTime:""
             }
-
-            var params = {
-                plant: thePlant,
-                sfc: thesfc
+            var that = this;
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            that.showSuccessMessage("Signoff done", true);
+                            //oLogger.info("compolete success");
+                            resolve(oResponseData);
+                        },
+                        //The error call back for the /classification/v1/read
+                        function (oError, sHttpErrorMessage) {
+                            oLogger.info("Signoff   API call failed " + sHttpErrorMessage);
+                            that.showErrorMessage(oError, true);
+                            reject(oError);
+                        })
+                });
+                return oResponseData;
+            } catch (error) {
             }
-            this.ajaxGetRequest(sUrl, params, function(oResponseData) {
-                resolve(oResponseData);
-            }, function(Error) {
-                reject(Error);
-            });
-        });
-        return oResponseData;
-    },
-     // --
+        },
+
+        /** getComponentsForSfc
+        * 
+        * @returns a promise that if resolved contains the components
+        *  for the sfc in the selection Model and plant
+        * In summary this function should be used inside POD Plugins only
+        * the resolved promise result is of the format of an array
+        * [
+        *      {
+        *          component:'value text',
+        *          componentVersion    :'component version text',
+        *          componentDescription:'ComponentDescription text',
+        *          operationActivity   :'operation Activity text',
+        *          plant               :'plant text'
+        *      },
+        *      {
+        *      },
+        *      .
+        *      .
+        * ]
+        * 
+        * ]
+        * 
+        */
+        getComponentsForSfc: async function () {
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
+                    var selection = this.getPodSelectionModel().getSelections();
+                    var thesfc = selection[0].getSfc().getSfc();
+                    var thePlant = this.getPodController().getUserPlant();
+
+                    if (!thePlant || !thePlant) {
+                        console.log("we have not made a selection")
+                        return;
+                    }
+
+                    var params = {
+                        plant: thePlant,
+                        sfc: thesfc
+                    }
+                    this.ajaxGetRequest(sUrl, params, function (oResponseData) {
+                        resolve(oResponseData);
+                    }, function (Error) {
+                        reject(Error);
+                    });
+                });
+                return oResponseData;
+            } catch (error) {
+
+            }
+        },
+        // --
         //  SfcStatusIsStartable wraps the calls to sfc/detail API in a promise
         // -- and makes it possible to use asyc - wait 
         // 
@@ -292,125 +295,134 @@ const COMPLETE_ORDER_DONE=8;
                 sfc: thesfc
             }
             var that = this;
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    that.ajaxGetRequest(sUrl, params, function (oResponseData) {
+                        var code = oResponseData.status.code;
+                        var sfcsWithCodeStartable = (code == SFCS_NEW || code == SFCS_INQUE) ? oResponseData.sfc : "";
+                        var goodToStart = (code == SFCS_NEW || code == SFCS_INQUE) ? true : false
+                        // we want to push this to the model
 
-            var oResponseData = await new Promise((resolve, reject) => {
-                that.ajaxGetRequest(sUrl, params, function (oResponseData) {
-                    var code = oResponseData.status.code;
-                    var sfcWithCodeStartable = (code == SFCS_NEW || code == SFCS_INQUE) ? oResponseData.sfc : "";
-                    var goodToStart = (code == SFCS_NEW || code == SFCS_INQUE) ? true : false
-                    // we want to push this to the model
+                        var tm = that.getView().getModel().getProperty("/startableSFCs");
 
-                    var tm = that.getView().getModel().getProperty("/startableSFCs");
-
-                    if (sfcWithCodeStartable) {
-                        tm.push(sfcWithCodeStartable);
-                        that.getView().getModel().setProperty("/startableSFCs", tm);
-                        that._debugGlb("Setting tm in the model after validate called", tm);
-                    }
-                    var result = tm;
-                    if (!ENABLE_PROMISE_ALL) {
-                        resolve(result);
-                    } else {
-                        resolve(goodToStart);
-                    }
-                }, function (Error, sHttpErrorMessage) {
-                    reject(Error);
+                        if (sfcsWithCodeStartable) {
+                            tm.push(sfcsWithCodeStartable);
+                            that.getView().getModel().setProperty("/startableSFCs", tm);
+                            that._debugGlb("Setting tm in the model after validate called", tm);
+                        }
+                        var result = tm;
+                        if (!ENABLE_PROMISE_ALL) {
+                            resolve(result);
+                        } else {
+                            resolve(goodToStart);
+                        }
+                    }, function (Error, sHttpErrorMessage) {
+                        reject(Error);
+                    });
                 });
-            });
-            return oResponseData;
+                return oResponseData;
+            } catch (error) {
+
+            }
         },
         // ------------------ End getSfcStatusIsStartable --------
         //--
         //---------------------- classificationRead -----------------
-        classificationRead: async function(imaterial) {
-            var sUrl=this.getPublicApiRestDataSourceUri() + "/classification/v1/read";
+        classificationRead: async function (imaterial) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/classification/v1/read";
             var sfcplant = this.getPodController().getUserPlant();
-            var oObjectKeys=[];
-            if (imaterial){
+            var oObjectKeys = [];
+            if (imaterial) {
                 oObjectKeys.push(imaterial);
             } else {
-                var pmaterial=this.getView().getModel().getProperty("/material");
+                var pmaterial = this.getView().getModel().getProperty("/material");
                 oObjectKeys.push(pmaterial);
-                console.log("ObjectKeyss="+oObjectKeys);
+                console.log("ObjectKeyss=" + oObjectKeys);
             }
 
 
-            var ssfcParameters={
-                plant:sfcplant,
-                objectKeys:oObjectKeys,
-                objectType:"MATERIAL", //Material
-                classType:"001"
+            var ssfcParameters = {
+                plant: sfcplant,
+                objectKeys: oObjectKeys,
+                objectType: "MATERIAL", //Material
+                classType: "001"
                 //,classes:[""]//
-                
+
             }
-            var that=this;
-            var oResponseData = await new Promise((resolve, reject) => {
-                this.ajaxPostRequest(
-                    sUrl,
-                    ssfcParameters,
-                    function (oResponseData) {
-                        that.showSuccessMessage("classication called  succesfully!", true);
-                        //oLogger.info("classification call success");
-                        resolve(oResponseData);
-                    },
-                    //The error call back for the /classification/v1/read
-                    function (oError, sHttpErrorMessage) {
-                        oLogger.info("Classsication API call failed "   + sHttpErrorMessage);
-                        that.showErrorMessage(oError, true);
-                        reject(oError);
-                    })
-            });
-            return oResponseData;
+            var that = this;
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            that.showSuccessMessage("classication called  succesfully!", true);
+                            //oLogger.info("classification call success");
+                            resolve(oResponseData);
+                        },
+                        //The error call back for the /classification/v1/read
+                        function (oError, sHttpErrorMessage) {
+                            oLogger.info("Classsication API call failed " + sHttpErrorMessage);
+                            that.showErrorMessage(oError, true);
+                            reject(oError);
+                        })
+                });
+                return oResponseData;
+            } catch (error) {
+
+            }
 
         },
         //--------------------- End classificationRead ---------------
 
         //--
-    //------------------  completeOrderSfcs ------------------
-    completeOrderSfcs : async function (psfcs){
-        var sUrl=this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
-        var sfcplant = this.getPodController().getUserPlant();
-        var sfcOperation = this._getWorkListSelectedOperationGlb(); 
+        //------------------  completeOrderSfcs ------------------
+        completeOrderSfcs: async function (psfcs) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+            var sfcOperation = this._getWorkListSelectedOperationGlb();
             var sfcResource = this.getPodSelectionModel().getResource().getResource();
-        
-    
+
+            var ssfcParameters = {
+                plant: sfcplant,
+                operation: sfcOperation,
+                resource: sfcResource,
+                sfcs: psfcs
+                //,processLot:"""
 
 
-        var ssfcParameters={
-            plant:sfcplant,
-            operation:sfcOperation,
-            resource:sfcResource,
-            sfcs:psfcs
-            //,processLot:"""
 
-            
-            
-        }
-        var that=this;
-        var oResponseData = await new Promise((resolve, reject) => {
-            this.ajaxPostRequest(
-                sUrl,
-                ssfcParameters,
-                function (oResponseData) {
-                    that.showSuccessMessage("complete done", true);
-                    //oLogger.info("compolete success");
-                    resolve(oResponseData);
-                },
-                //The error call back for the /classification/v1/read
-                function (oError, sHttpErrorMessage) {
-                    oLogger.info("Complete  API call failed "   + sHttpErrorMessage);
-                    that.showErrorMessage(oError, true);
-                    reject(oError);
-                })
-        });
-        return oResponseData;
+            }
+            try {
+                var that = this;
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            that.showSuccessMessage("complete done", true);
+                            //oLogger.info("compolete success");
+                            resolve(oResponseData);
+                        },
+                        //The error call back for the /classification/v1/read
+                        function (oError, sHttpErrorMessage) {
+                            oLogger.info("Complete  API call failed " + sHttpErrorMessage);
+                            that.showErrorMessage(oError, true);
+                            reject(oError);
+                        })
+                });
+                return oResponseData;
+            } catch (error) {
 
-    },
-    //-----------------------End CompleteOrderSfcs -----------------
+            }
 
- //---
-        // --------------------- startAllSfcs----------------
-        // It starts all sfcs in the passed array at Plant ,Operation , quantity and Resource
+        },
+        //-----------------------End CompleteOrderSfcs -------------------
+
+        //---
+        // --------------------- startAllSfcs-----------------------------
+        // It starts all sfcs in the passed array at Plant ,Operation , 
+        //quantity and Resource
         // It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402))
         // It returns a Promise with all the started sfcs if succesfull
 
@@ -433,48 +445,128 @@ const COMPLETE_ORDER_DONE=8;
                 sfcs: sSfcs //,
                 // processLot:""
             }
+            var that = this;
+            try {
 
-            var oResponseData = await new Promise((resolve, reject) => {
-                this.ajaxPostRequest(
-                    sUrl,
-                    ssfcParameters,
-                    function (oResponseData) {
-                        that.showSuccessMessage("Order Started succesfully!", true);
-                        //oLogger.info("Orderstart success");
-                        resolve(oResponseData);
-                    },
-                    //The error call back for the /sfc/sfcs/start API call
-                    function (oError, sHttpErrorMessage) {
-                        oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
-                        that.showErrorMessage(oError, true);
-                        reject(oError);
-                    })
-            });
-            return oResponseData;
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            that.showSuccessMessage("Order Started succesfully!", true);
+                            //oLogger.info("Orderstart success");
+                            resolve(oResponseData);
+                        },
+                        //The error call back for the /sfc/sfcs/start API call
+                        function (oError, sHttpErrorMessage) {
+                            oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
+                            that.showErrorMessage(oError, true);
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            } catch (error) {
+
+            }
+
         },
         // ----- End startAllSfcs async
 
-        
-        
-
-    /**               END DM APIs
-     * 
-     *
-     * 
-     */
 
 
+        getAllSfcsInOrder: async function (porder) {
+            var ePlant = this.getPodController().getUserPlant();
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/order/v1/orders";
+            oLogger.info("sUrl : " + sUrl);
+            //Set the parameters
+            var oParameters = {
+                order: porder,
+                plant: ePlant
+            };
+            var that = this;
+
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxGetRequest(
+                        sUrl,
+                        oParameters,
+                        function (oResponseData) { //Orders response
+                            that._debugGlb("Order response reached");
+
+                            var sfcSfcs = oResponseData["sfcs"];
+                            resolve(sfcSfcs);
+                        }, function (oError, sHttpErrorMessage) {
+                            reject(oError);
+
+                        });
 
 
-    onSignOffComponents: function (evt) {
-        console.log("Validate button pressed");
-        var signoffpromise = this.signOffSfcs();
-        signoffpromise.then(result => {
-            console.log("signoff done");
-        }).catch(error => {
-            console.log("Error in signoff components");
-        });
-    },
+                }); //cp
+                return oResponseData;
+            } catch (error) {
+                that._debugGlb("getAllSfcInOrder Error");
+
+            }
+        },
+        //---------------------- end getStartable SFCS ------
+
+        //
+        //Use Promise all to wait until all Promises
+        // Have been resolved
+        //
+        //-- filterStartableSFCs --------------
+        // get a list of the startable sfcs as an array 
+        // by scanning throught the list fo the passed sfcs (sfctofilter)
+        // calling the getSfcStatusIsStartable with every sfc in the list
+        // which in turn calls the API /sfc/detail to the get status code of the sfc
+        // the returned value is a promise containg all sfcs with status code INQUEW or NEW.
+
+        filterStartableSFCs: function (sfcstofilter) {
+            var startableSFCS = [];
+            var promises = sfcstofilter.map(item => {
+                return this.getSfcStatusIsStartable(item)
+                    .then(isStartable => {
+                        if (isStartable) {
+                            startableSFCS.push(item);
+                        }
+                    });
+            });
+            return Promise.all(promises)
+                .then(() => {
+                    return startableSFCS; // Return startable SFCs once all promises have been resolved
+                })
+                .catch(error => {
+                    console.error(error); // Log any errors
+                });
+        },
+
+        /**
+         * 
+         *              END DM APIs
+         * 
+         */
+        onTestWorkflow : function(evt){
+            this.showSuccessMessage("onTestWorkFlow clickd!");
+            var eOrder = this.getView().byId("OrderValueLabel").getText();
+            this.orchestrateStartAllSfcswrkf(eOrder);
+            
+
+        },
+        orchestrateStartAllSfcswrkf: async function (eOrder){
+            var allSfcs =  await this.getAllSfcsInOrder(eOrder);
+            oLogger.info("sfcs found in Order  "+ allSfcs.length);
+
+        },
+
+        onSignOffComponents: function (evt) {
+            console.log("Validate button pressed");
+            var signoffpromise = this.signOffSfcs();
+            signoffpromise.then(result => {
+                console.log("signoff done");
+            }).catch(error => {
+                console.log("Error in signoff components");
+            });
+        },
 
 
 
@@ -483,7 +575,7 @@ const COMPLETE_ORDER_DONE=8;
         // to only sfcs that are appropriate for starting
         // this means only the ones that have status of NEW or InQueue
         // @input sfcstofilter  has all the sfcs in the order
-        //-----------------------------------------------------------
+        //----------------------------------------------------------------
 
         getStartableSFCS: function (plant, sfcstofilter) {
             //for each sfc get the status (getSFCStatusIsStartable DM API call)
@@ -505,46 +597,17 @@ const COMPLETE_ORDER_DONE=8;
             this._debugGlb("after loop state of Model.startableSFCs" + sfcsGoodtostart);
         },
 
-        //---------------------- end getStartable SFCS ------
+        //---------------- End getStartable SFCs -------------------------
 
-        //Use Promise all to wait until all Promises
-        // Have been resolved
 
-        //-- filterStartableSFCs --------------
-        // get a list of the startable sfcs as an array 
-        // by scanning throught the list fo the passed sfcs (sfctofilter)
-        // calling the getSfcStatusIsStartable with every sfc in the list
-        // which in turn calls the API /sfc/detail to the get status of the sfc
-        // the returned value is a promise
 
-        filterStartableSFCs: function (sfcstofilter) {
-            var startableSFCS = [];
-            var promises = sfcstofilter.map(item => {
-                return this.getSfcStatusIsStartable(item)
-                    .then(isStartable => {
-                        if (isStartable) {
-                            startableSFCS.push(item);
-                        }
-                    });
-            });
-            return Promise.all(promises)
-                .then(() => {
-                    return startableSFCS; // Return startable SFCs once all promises have been resolved
-                })
-                .catch(error => {
-                    console.error(error); // Log any errors
-                });
-        },
 
-       
-        
-    
-       
+
 
         ComponentAPISucsess: function (oResponseData) {
             var result = oResponseData;
             var componentmodel = {
-                components:[]
+                components: []
             };
             for (let i = 0; i < result.length; i++) {
 
@@ -552,20 +615,24 @@ const COMPLETE_ORDER_DONE=8;
                     { component: result[i].component, description: result[i].componentDescription, validated: "N" }
                 );
 
-            } 
+            }
             this.getView().getModel().setProperty("/components", componentmodel.components);
         },
         ComponentAPIError: function (oError, sHttpErrorMessage) {
             //TODO do something with the error condition
         },
+        startAllSfcsWorkflow: async function(order){
+            oLogger.info("start all sfcsworkflow clicked");
+        },
+
 
         // [Validate component IS]
         //------------------ Start Validate Components --------
 
         onValidateComponents: function (evt) {
-            if (evt){
+            if (evt) {
                 oLogger.info("onValidateComponents: " + evt);
-            }else {
+            } else {
                 oLogger.info("onValidateComponents -called internally");
 
             }
@@ -611,25 +678,25 @@ const COMPLETE_ORDER_DONE=8;
                 this._oDialog.open();
             } //--
         },
-        
+
         //----------------- End Validate Components ----------
         onValidatePressed: function (evt) {
-            var howManyMatched =0;
+            var howManyMatched = 0;
             this.showSuccessMessage("Validate button pressed");
-            var scannedOrEntered=this.byId("componentInput").getValue();
-            var oTable=this.byId("Vcomp");
-            var nRows=oTable.getItems();
-            if (scannedOrEntered){
-                for (var i=0;i<=nRows.lenth; i++){
+            var scannedOrEntered = this.byId("componentInput").getValue();
+            var oTable = this.byId("Vcomp");
+            var nRows = oTable.getItems();
+            if (scannedOrEntered) {
+                for (var i = 0; i <= nRows.lenth; i++) {
 
                     var cellValue = nRows[i].getCells().getText();
-                    if (cellValue === scannedOrEntered){
-                        console.log("cell value ="+cellValue+" to matech :"+scannedOrEntered);
+                    if (cellValue === scannedOrEntered) {
+                        console.log("cell value =" + cellValue + " to matech :" + scannedOrEntered);
                         nRows[i].addStyleClass("markFound");
                         nRows[i].getCells[2].setText["Y"];
                         howManyMatched++;
 
-                    }else {
+                    } else {
                         this.showErrorMessage("Validation failed click ok to abort");
 
                         this.byId("dcomponentValidator").close();
@@ -649,84 +716,84 @@ const COMPLETE_ORDER_DONE=8;
                 }
 
 
-            }else {
+            } else {
 
             }
         },
 
-        onCompleteComponents: function(evt){
+        onCompleteComponents: function (evt) {
 
-             this.showSuccessMessage("Validate button pressed");
-
-        },
-        onSignOffComponents: function(evt){
             this.showSuccessMessage("Validate button pressed");
 
         },
-        stateMachineLutronProcess: function ( state){
-            
-           
-            var currentLPState= state ? state: LPNS;
+        onSignOffComponents: function (evt) {
+            this.showSuccessMessage("Validate button pressed");
+
+        },
+        stateMachineLutronProcess: function (state) {
+
+
+            var currentLPState = state ? state : LPNS;
 
             //get all the button id's from the view
-            
-            var ButtonSO=this.byId("OrderStartType");
-            var ButtonVC=this.byId("ValidateCompType");
-            var ButtonCO=this.byId("CompletComp");
-            var ButtonSOFF=this.byId("SignoffComp");
-            var buttonSoText=ButtonSO.getText();
-            var ButtonVcText=ButtonVC.getText();
-            var ButtonCoText=ButtonCO.getText();
 
-            switch(state){
+            var ButtonSO = this.byId("OrderStartType");
+            var ButtonVC = this.byId("ValidateCompType");
+            var ButtonCO = this.byId("CompletComp");
+            var ButtonSOFF = this.byId("SignoffComp");
+            var buttonSoText = ButtonSO.getText();
+            var ButtonVcText = ButtonVC.getText();
+            var ButtonCoText = ButtonCO.getText();
+
+            switch (state) {
                 case INIT_LP:
                     //all buttons are disabled
                     ButtonSO.setEnabled(false);
                     ButtonVC.setEnabled(false);
                     ButtonCO.setEnabled(false);
                     ButtonSOFF.setEnabled(false);
-                    currentLPState=INIT_LP;
+                    currentLPState = INIT_LP;
                     break;
-            
-            case START_ORDER_ON:
-                ButtonSO.setEnabled(true);
-                currentLPState=START_ORDER_ON;
-                break;
 
-            case START_ORDER_WORKING:
+                case START_ORDER_ON:
+                    ButtonSO.setEnabled(true);
+                    currentLPState = START_ORDER_ON;
+                    break;
+
+                case START_ORDER_WORKING:
                     ButtonSO.setEnabled(false);
                     ButtonSO.setText("Working ......");
-                    currentLPState=START_ORDER_WORKING;
-                break;
-            case START_ORDER_DONE:
-                ButtonSO.setEnabled(true);
-                ButtonSO.setText("Start Order");
-                currentLPState=START_ORDER_DONE;
-                //ButtonVC.setText("Validate Component working ...");
-                ButtonVC.setEnabled(true);
+                    currentLPState = START_ORDER_WORKING;
+                    break;
+                case START_ORDER_DONE:
+                    ButtonSO.setEnabled(true);
+                    ButtonSO.setText("Start Order");
+                    currentLPState = START_ORDER_DONE;
+                    //ButtonVC.setText("Validate Component working ...");
+                    ButtonVC.setEnabled(true);
 
 
 
-                break;
-            case VALIDATE_COMP_ON:
-                break;
-            case VALIDATE_COMP_DONE:
-                break;
-            case  COMPLETE_ORDER_ON:
-                break;
-            case COMPLETE_ORDER_WORKING:
-                break;
-            case COMPLETE_ORDER_DONE:
-                break;
-            
-            default:
-                console.log("Unknown state");
+                    break;
+                case VALIDATE_COMP_ON:
+                    break;
+                case VALIDATE_COMP_DONE:
+                    break;
+                case COMPLETE_ORDER_ON:
+                    break;
+                case COMPLETE_ORDER_WORKING:
+                    break;
+                case COMPLETE_ORDER_DONE:
+                    break;
+
+                default:
+                    console.log("Unknown state");
 
 
-                return currentLPState;
+                    return currentLPState;
 
-        }
-    },
+            }
+        },
 
 
 
@@ -792,7 +859,7 @@ const COMPLETE_ORDER_DONE=8;
 
                     // check getStartableSFCS and get in the list (filteredsfcs) only the ones that can be started.
 
-                    console.log("unfileterd sfcs count = " + sfcSfcs.length);
+                    console.log("all order sfcs count = " + sfcSfcs.length);
                     var filteredsfcs = {};
                     if (!ENABLE_PROMISE_ALL) {
                         filteredsfcs = that.getStartableSFCS(sfcplant, sfcSfcs);
@@ -811,10 +878,10 @@ const COMPLETE_ORDER_DONE=8;
                     filteredsfcs.then(validatedsfcs => {
                         console.log(validatedsfcs);
                         let vlength = validatedsfcs.length;
-                        if (vlength==0){
+                        if (vlength == 0) {
                             that.showErrorMessage("Nothing to Start");
                             return;
-                        
+
 
                         }
                         console.log("validated sfcs lentgh" + vlength);
@@ -952,7 +1019,7 @@ const COMPLETE_ORDER_DONE=8;
             var sInput, sSfc, sMaterial, sShopOrder;
             //get the selections in aSelections
             var aSelections = oPodSelectionModel.getSelections();
-            if (aSelections && aSelections.length > 0) { 
+            if (aSelections && aSelections.length > 0) {
                 //loop through all the selections and extract info in sInput ,sSfc , sMaterial,sShopOrder
                 for (var i = 0; i < aSelections.length; i++) {
                     sInput = aSelections[i].getInput();
@@ -965,7 +1032,7 @@ const COMPLETE_ORDER_DONE=8;
                         if (aSelections[i].getItem()) {
                             sMaterial = aSelections[i].getItem().getItem();
                         }
-                        sShopOrder = ""; 
+                        sShopOrder = "";
                         if (aSelections[i].getShopOrder()) {
                             sShopOrder = aSelections[i].getShopOrder().getShopOrder();
 
@@ -984,7 +1051,7 @@ const COMPLETE_ORDER_DONE=8;
                 }
                 iSelectionCount = aInputs.length;
             }
-    
+
 
             var iOperationCount = 0;
             var aOperations = [];
@@ -1007,34 +1074,34 @@ const COMPLETE_ORDER_DONE=8;
 
             }
             // Create the Model in oModelData
-            var oInputType=oPodSelectionModel.getInputType();
-            var oWorkCenter=oPodSelectionModel.getWorkCenter();
+            var oInputType = oPodSelectionModel.getInputType();
+            var oWorkCenter = oPodSelectionModel.getWorkCenter();
             //operation  somehow is not in the selection Model so we will 
             // Use the one that we stored from the WorklistChangeEvent
             var oOperation = this._getWorkListSelectedOperationGlb();
-            
-            if (oOperation ==="notset"){
-                oOperation ="";
-           
+
+            if (oOperation === "notset") {
+                oOperation = "";
+
             }
 
             var oModelData = {
-                podType: sPodType, 
-                inputType: oInputType, 
-                workCenter: oWorkCenter, 
-                operation: oOperation, 
-                resource: sResource, 
-                selectionCount: iSelectionCount, 
-                operationCount: iOperationCount, 
-                selections: aInputs, 
-                orderselect: sShopOrder, 
-                operations: aOperations, 
-                notificationsEnabled: bNotificationsEnabled, 
-                notificationMessage: "", 
+                podType: sPodType,
+                inputType: oInputType,
+                workCenter: oWorkCenter,
+                operation: oOperation,
+                resource: sResource,
+                selectionCount: iSelectionCount,
+                operationCount: iOperationCount,
+                selections: aInputs,
+                orderselect: sShopOrder,
+                operations: aOperations,
+                notificationsEnabled: bNotificationsEnabled,
+                notificationMessage: "",
                 //Not needed for lutron but i leave it in.
-                materialCustomFields: aMaterialCustomFields, 
-                wrklstrow: wrklstcurrentsel, 
-                material:"",
+                materialCustomFields: aMaterialCustomFields,
+                wrklstrow: wrklstcurrentsel,
+                material: "",
                 startableSFCs: []
             };
 
@@ -1043,15 +1110,15 @@ const COMPLETE_ORDER_DONE=8;
             }
             // add material custom fields to model
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
-           
+
             var oModel = new JSONModel(oModelData);
-            this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs),oModelData.operation);
+            this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs), oModelData.operation);
 
             // Set the model for the View with the gathered info
             // if we have aInputs we want to set in the model the first material 
             // for the Lutron plugin
-                oModelData.material = aInputs.length ? aInputs[0].material : "";
-               
+            oModelData.material = aInputs.length ? aInputs[0].material : "";
+
             oView.setModel(oModel);
         },
 

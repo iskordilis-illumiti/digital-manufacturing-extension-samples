@@ -63,6 +63,8 @@
                             <Button id="CompletComp" text="Complete Order" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onCompleteComponents" class="sapUiTinyMarginEnd"/>
                             <Button id="SignoffComp" text="Sign Off Components" visible="true"  press=".onSignOffComponents" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestFunction" text="function" visible="true"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="TestFlow" text="test flow" visible="true"  press=".onTestWorkflow" class="sapUiTinyMarginEnd signoff-color"/>
+
 
 
                         </items>
