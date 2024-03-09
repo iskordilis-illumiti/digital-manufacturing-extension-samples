@@ -10,7 +10,7 @@ sap.ui.define([
     // Then import into this main module for the plugin
     //TODO convert promise "then" chaining into async , wait structure
 
-    var oLogger = Log.getLogger("exampleExecutionPlugin", Log.Level.INFO);
+    var oLogger = Log.getLogger("Lutron View Plugin", Log.Level.INFO);
     //------------------------------------------------------------------------
     //  add a wrklstcurrentsel to receive the selected row on the worklist 
     // (this is includes Operation that is missing from the selectionModel for some reason)
@@ -31,7 +31,7 @@ sap.ui.define([
         _glbSet: function (sobj) { this._sfcGoodToStart = sobj },
     }
 
-    //Simple state machine nodes for the Lutron plugin
+    //Simple state machine nodes for the Lutron plugin flow
     const LPNS = -1;
     const INIT_LP = 0;
     const START_ORDER_ON = 1;
@@ -136,11 +136,7 @@ sap.ui.define([
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
 
-
-            //this._glbstartableSFCObj._glbAdd(wrklstcurrentsel);
-
             this.stateMachineLutronProcess(START_ORDER_ON);
-
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -148,6 +144,7 @@ sap.ui.define([
             // loadModel first since it creates a model from scratch 
             this.loadModel();
         },
+
         _getWorkListSelectedOperationGlb: function () {
             return wrklstsopersel;
         },
@@ -161,15 +158,11 @@ sap.ui.define([
                 var param = b ? b : "";
                 var param0 = m ? m : "info:"
 
-                oLogger.info(param0 + " : " + "Globals->  wrklstcurrentsel: " +
-                    this._getWorkListSelectedRowDataGlb() +
-                    "  wrklstsopersel: " +
-                    wrklstsopersel +
-                    "  param:", param);
+                oLogger.info(param0 + " : " + "  param:"+ param);
 
 
             } catch (error) {
-                oLogger.info("Error which is (propably circular dependency ):", Error);
+                oLogger.info("Error which is (propably circular dependency ):");
             } finally {
                 // the statement below gets the the full json model in
                 //javascript format.
@@ -177,6 +170,11 @@ sap.ui.define([
                 //TODO remove eventually
                 var theModel = this.getView().getModel().getData();
             }
+        },
+        
+        _debugWrklstOperSelected(){
+            this._debugGlb("wrklstpersel",wrklstcurrentsel);
+
         },
         /****************************************************************
          * 
@@ -521,7 +519,7 @@ sap.ui.define([
         // which in turn calls the API /sfc/detail to the get status code of the sfc
         // the returned value is a promise containg all sfcs with status code INQUEW or NEW.
 
-        filterStartableSFCs: function (sfcstofilter) {
+        filterStartableSFCs: async function (sfcstofilter) {
             var startableSFCS = [];
             var promises = sfcstofilter.map(item => {
                 return this.getSfcStatusIsStartable(item)
@@ -531,13 +529,12 @@ sap.ui.define([
                         }
                     });
             });
-            return Promise.all(promises)
-                .then(() => {
-                    return startableSFCS; // Return startable SFCs once all promises have been resolved
-                })
-                .catch(error => {
-                    console.error(error); // Log any errors
-                });
+            try {
+                await Promise.all(promises);
+                return startableSFCS;
+            } catch (error) {
+                console.error(error); // Log any errors
+            }
         },
 
         /**
@@ -552,9 +549,14 @@ sap.ui.define([
             
 
         },
+
         orchestrateStartAllSfcswrkf: async function (eOrder){
             var allSfcs =  await this.getAllSfcsInOrder(eOrder);
             oLogger.info("sfcs found in Order  "+ allSfcs.length);
+            
+            var sfcstostart=await this.filterStartableSFCs(allSfcs);
+            oLogger.info("startablesfcs size  "+ sfcstostart.length);
+
 
         },
 
