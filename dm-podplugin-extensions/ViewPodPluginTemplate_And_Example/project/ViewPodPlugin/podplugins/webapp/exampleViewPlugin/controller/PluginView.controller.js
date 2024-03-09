@@ -54,6 +54,14 @@ sap.ui.define([
     const SFCS_CHUNK = 499;  //dont make this greater than 499 for calling sfc/sfcs/start - move to POD Designer.
     const SFCS_NEW = 401;
     const SFCS_INQUE = 402;
+    const SFCS_ACTIVE= 403;
+    const SFCS_ONHOLD = 404;
+    const SFCS_DONE = 405;
+    const SFCS_DONE_HOLD = 406;
+    const SFCS_SCRAPPED = 407;
+    const SFCS_INVALID =408;
+    const SFCS_DELETED = 409;
+    
 
     //--------------------------------------------------------------------------
 
@@ -199,9 +207,9 @@ sap.ui.define([
                 plant: sfcplant,
                 operation: sfcOperation,
                 resource: sfcResource,
-                //sfcs:psfcs
-                sfcs: null,
-                processLot: null
+                sfcs:psfcs
+                //sfcs: null,
+                //processLot: null
                 // dateTime:""
             }
             var that = this;
@@ -553,9 +561,16 @@ sap.ui.define([
         orchestrateStartAllSfcswrkf: async function (eOrder){
             var allSfcs =  await this.getAllSfcsInOrder(eOrder);
             oLogger.info("sfcs found in Order  "+ allSfcs.length);
-            
+            //TODO split sfcs array into multiple arrays of given size if 
+            // if the sfcs in the array are >500
             var sfcstostart=await this.filterStartableSFCs(allSfcs);
             oLogger.info("startablesfcs size  "+ sfcstostart.length);
+            if (sfcstostart.length ===0){
+                //temporarilly do signoff so we can test 
+                var signedoff = this.signOffSfcs(allSfcs);
+
+
+            }
 
 
         },
