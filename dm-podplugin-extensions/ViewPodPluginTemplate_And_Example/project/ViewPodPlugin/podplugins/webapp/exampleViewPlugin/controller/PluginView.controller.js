@@ -286,49 +286,57 @@ sap.ui.define([
 
             }
         },
+
+    getSfcStatus:async function(thesfc){
+        var theplant = this.getPodController().getUserPlant();
+        var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
+        var params = {
+            plant: theplant,
+            sfc: thesfc
+        };
+        var that = this;
+        try {
+            var oResponseData = await new Promise((resolve, reject) => {
+                that.ajaxGetRequest(sUrl, params, function (oResponseData) {
+                    resolve(oResponseData);
+                }, function (Error, sHttpErrorMessage) {
+                    reject(Error);
+                });
+            });
+            return oResponseData;
+        } catch (error) {
+
+        }
+    },
         // --
         //  SfcStatusIsStartable wraps the calls to sfc/detail API in a promise
         // -- and makes it possible to use asyc - wait 
         // 
         // Returns a promise that has true if the passed sfc is startable
         // false if it is not
+        // TODO factor out the API call /sfc/v1/sfcdetail on its own
+        // Then call this and do the status comparisons on the resolved API call.
 
         getSfcStatusIsStartable: async function (thesfc) {
-            var theplant = this.getPodController().getUserPlant();
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
-            var params = {
-                plant: theplant,
-                sfc: thesfc
-            }
-            var that = this;
+          
             try {
-                var oResponseData = await new Promise((resolve, reject) => {
-                    that.ajaxGetRequest(sUrl, params, function (oResponseData) {
-                        var code = oResponseData.status.code;
-                        var sfcsWithCodeStartable = (code == SFCS_NEW || code == SFCS_INQUE) ? oResponseData.sfc : "";
-                        var goodToStart = (code == SFCS_NEW || code == SFCS_INQUE) ? true : false
+
+                var oResponseData = await this.getSfcStatus(thesfc);
+                var code = oResponseData.status.code;
+                    var sfcsWithCodeStartable = (code == SFCS_NEW || code == SFCS_INQUE) ? oResponseData.sfc : "";
+                     var goodToStart = (code == SFCS_NEW || code == SFCS_INQUE) ? true : false;
                         // we want to push this to the model
-
-                        var tm = that.getView().getModel().getProperty("/startableSFCs");
-
+                        console.log("status code="+code);
+                        var tm = this.getView().getModel().getProperty("/startableSFCs");
                         if (sfcsWithCodeStartable) {
                             tm.push(sfcsWithCodeStartable);
-                            that.getView().getModel().setProperty("/startableSFCs", tm);
-                            that._debugGlb("Setting tm in the model after validate called", tm);
+                            this.getView().getModel().setProperty("/startableSFCs", tm);
+                            //this._debugGlb("Setting tm in the model after validate called", tm);
                         }
                         var result = tm;
-                        if (!ENABLE_PROMISE_ALL) {
-                            resolve(result);
-                        } else {
-                            resolve(goodToStart);
-                        }
-                    }, function (Error, sHttpErrorMessage) {
-                        reject(Error);
-                    });
-                });
-                return oResponseData;
-            } catch (error) {
-
+                        return goodToStart;
+                }
+               catch (error) {
             }
         },
         // ------------------ End getSfcStatusIsStartable --------
@@ -551,28 +559,43 @@ sap.ui.define([
          * 
          */
         onTestWorkflow : function(evt){
-            this.showSuccessMessage("onTestWorkFlow clickd!");
+            //this.showSuccessMessage("onTestWorkFlow clickd!");
             var eOrder = this.getView().byId("OrderValueLabel").getText();
-            this.orchestrateStartAllSfcswrkf(eOrder);
+            this.orchestrateStartAllSfcswrkf(eOrder,evt);
+
             
 
         },
 
-        orchestrateStartAllSfcswrkf: async function (eOrder){
+        orchestrateStartAllSfcswrkf: async function (eOrder,tevt){
+            tevt.getSource().setBusy(true);
+            if (!eOrder){
+                this.showErrorMessage("Order Not selected");
+            }
             var allSfcs =  await this.getAllSfcsInOrder(eOrder);
             oLogger.info("sfcs found in Order  "+ allSfcs.length);
+
             //TODO split sfcs array into multiple arrays of given size if 
             // if the sfcs in the array are >500
             var sfcstostart=await this.filterStartableSFCs(allSfcs);
             oLogger.info("startablesfcs size  "+ sfcstostart.length);
-            if (sfcstostart.length ===0){
+
+            
                 //temporarilly do signoff so we can test 
-                var signedoff = this.signOffSfcs(allSfcs);
+                //filter from the list only the active sfcs
+                var thesfcs= await this.filterActiveSFCS(allSfcs);
+                oLogger.info("active sfcs found  "+thesfcs.length);
 
+                //It does not work because the list contain SFC with status DONE
+                oLogger.info("signoff 450 sfcs");
+                var partofthesfcs=thesfcs.slice(0,450);
+                var signedoff = await this.signOffSfcs(partofthesfcs);
+                partofthesfcs=thesfcs.slice(450,thesfcs.lenght);
+                //oLogger.info("signoff sfcs from 450 to the end");
+                //var therestof=await this.signOffSfcs(thesfcs);
+                tevt.getSource().setBusy(false);
 
-            }
-
-
+            
         },
 
         onSignOffComponents: function (evt) {
@@ -581,8 +604,51 @@ sap.ui.define([
             signoffpromise.then(result => {
                 console.log("signoff done");
             }).catch(error => {
-                console.log("Error in signoff components");
+                console.log("Error in signoff components:Line 609");
             });
+        },
+
+        filterActiveSFCS: async function (thesfcs){
+            var activeSFCS = [];
+            var promises = thesfcs.map(item => {
+                return this.getSfcStatusIsActive(item)
+                    .then(isActive => {
+                        if (isActive) {
+                            activeSFCS.push(item);
+                        }
+                    });
+            });
+            try {
+                await Promise.all(promises);
+                return activeSFCS;
+            } catch (error) {
+                console.error("signoff has failed!! line 627"); // Log any errors
+            }
+        },
+
+        getSfcStatusIsActive: async function (thesfc){
+            try {
+
+                var oResponseData = await this.getSfcStatus(thesfc);
+                var code = oResponseData.status.code;
+                    var sfcsWithCodeStartable = (code ==  SFCS_ACTIVE) ? oResponseData.sfc : "";
+                     var goodActive = (code ==  SFCS_ACTIVE ) ? true : false;
+                        // we want to push this to the model
+                       // console.log("status code="+code);
+                        var tm = this.getView().getModel().getProperty("/activeSFCs");
+                        if (sfcsWithCodeStartable) {
+                            tm.push(sfcsWithCodeStartable);
+                            this.getView().getModel().setProperty("/activeSFCs", tm);
+                            //this._debugGlb("Setting tm in the model after validate called", tm);
+                        }
+                        var result = tm;
+                        return goodActive;
+                        
+                }
+               catch (error) {
+                oLogger.infor ( "Error in the catch of getSfcStatusActive");
+
+            }      
         },
 
 
@@ -611,7 +677,7 @@ sap.ui.define([
             // At this point the list of startable sfcs should be in the model ("startableSFCs")
             // check by putting a watch variable sfcGoodtoStart
             var sfcsGoodtostart = this.getView().getModel().getProperty("/startableSFCs");
-            this._debugGlb("after loop state of Model.startableSFCs" + sfcsGoodtostart);
+            //this._debugGlb("after loop state of Model.startableSFCs" + sfcsGoodtostart);
         },
 
         //---------------- End getStartable SFCs -------------------------
@@ -1020,7 +1086,7 @@ sap.ui.define([
             var oPodSelectionModel = this.getPodSelectionModel();
             if (!oPodSelectionModel) {
                 oView.setModel(new JSONModel());
-                this._debugGlb("INFO: loadModel - 488 Model globbered no selectionModel");
+                this._debugGlb("INFO: loadModel - 1091 Model globbered no selectionModel");
                 return;
             }
             //get the pod type in sPodType
@@ -1119,7 +1185,8 @@ sap.ui.define([
                 materialCustomFields: aMaterialCustomFields,
                 wrklstrow: wrklstcurrentsel,
                 material: "",
-                startableSFCs: []
+                startableSFCs: [],
+                activeSFCs:[]
             };
 
             if (aOperations.length === 1) {
@@ -1129,7 +1196,7 @@ sap.ui.define([
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
 
             var oModel = new JSONModel(oModelData);
-            this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs), oModelData.operation);
+            //this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs), oModelData.operation);
 
             // Set the model for the View with the gathered info
             // if we have aInputs we want to set in the model the first material 
