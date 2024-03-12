@@ -687,40 +687,11 @@ sap.ui.define([
             oLogger.info("startablesfcs size  " + sfcstostart.length);
 
             // do the validation
-            oStartOrderButton.setBusy(false);
-            oValidationButton.setBusy(true);
+            
 
             //get the components
             var theComponents = await this.getComponentsForSfc();
-            //vet the components through classification information.
-            //var vetted = await this.vettedComponents();
-
-            //set the model for the fragment dialog to validate the components
-
-            var componetsModel = this.ComponentAPISucsess(theComponents);
-
-            var theDialog = await this.openValidateDialog();
-            console.log("theDialog="+theDialog);
-            oValidationButton.setBusy(false);
-            if (theDialog === 1 ){
-                
-                
-                this.showSuccessMessage("Component Validation passsed Process will continue.", true, true);
-
-            }else{
-                this.showErrorMessage("Component Validation failed  Process will stop.", true, true);
-                
-            }
-            
-
-
-
-
-
-
-
-
-            if (0) {
+            if (1) {
                 var vlength = sfcstostart.length;
                 //set the parameters for the start outside the loop
                 var bAskOnce = false;
@@ -743,15 +714,41 @@ sap.ui.define([
                     );
 
                     oStartOrderButton.setBusy(false);
-                    var oCompleteButton = this.getView().byId("CompletComp");
+                    oValidationButton.setBusy(true);
+                    //vet the components through classification information.
+                    //var vetted = await this.vettedComponents();
 
-                    //do the complete 
-                    oCompleteButton.setBusy(true);
-                    var bcompleted = await this.completeOrderSfcs(startSFCChunk);
-                    oCompleteButton.setBusy(false);
+                    //set the model for the fragment dialog to validate the components
+
+                    var componetsModel = this.ComponentAPISucsess(theComponents);
+
+                    var theDialog = await this.openValidateDialog();
+                    console.log("theDialog=" + theDialog);
+                    oValidationButton.setBusy(false);
+                    if (theDialog === 1) {
+                        this.showSuccessMessage("Component Validation passsed Process will continue.", true, true);
+                        oStartOrderButton.setBusy(false);
+
+                        var oCompleteButton = this.getView().byId("CompletComp");
+
+                        //do the complete 
+                        oCompleteButton.setBusy(true);
+                        var bcompleted = await this.completeOrderSfcs(startSFCChunk);
+                        oCompleteButton.setBusy(false);
+
+                    } else {
+                        this.showErrorMessage("Component Validation failed  Process will stop.", true, true);
+                        oValidationButton.setBusy(false);
+                    }
+
+
                     //tevt.getSource().setBusy(false);
                 }
             }
+
+
+
+
         },
 
         onTestFunction: function (evt) {
@@ -1040,6 +1037,13 @@ sap.ui.define([
                     this._oDialog.open();
                 }
             });
+        },
+        onValDEscape:function ( e ){
+            e.resolve(-1);
+            var oValidationButton = this.getView().byId("ValidateCompType");
+            oValidationButton.setBusy(false);
+            
+            
         },
 
         //----------------- End Validate Components ----------
