@@ -50,8 +50,8 @@ sap.ui.define([
     //USE ENABLE_PROMISE to use promise.all to resolve all promises that
     // are called in a loop as in case of getting the SFC status.
     const ENABLE_PROMISE_ALL = true;
-
-    const SFCS_CHUNK = 499;  //dont make this greater than 499 for calling sfc/sfcs/start - move to POD Designer.
+    // start with 50 increase inremenenatally after tests to test stability.
+    const SFCS_CHUNK = 50;  //dont make this greater than 499 for calling sfc/sfcs/start - move to POD Designer.
     const SFCS_NEW = 401;
     const SFCS_INQUE = 402;
     const SFCS_ACTIVE= 403;
@@ -106,7 +106,7 @@ sap.ui.define([
 
         onBeforeRendering: function () {
             this.loadModel();
-            this.stateMachineLutronProcess(INIT_LP);
+            //this.stateMachineLutronProcess(INIT_LP);
         },
 
         onAfterRendering: function () {
@@ -124,13 +124,11 @@ sap.ui.define([
 
         onOperationChangeEvent: function (sChannelId, sEventId, oData) {
             console.log("OperationChange Event");
-            var p = 10; //just to put a breakpoint
-            //oLogger.info("onOperationChangeEvent: " + JSON.stringify(oData));
+
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
             }
-
             this.loadModel();
         },
 
@@ -144,7 +142,7 @@ sap.ui.define([
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
 
-            this.stateMachineLutronProcess(START_ORDER_ON);
+            //this.stateMachineLutronProcess(START_ORDER_ON);
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -354,13 +352,15 @@ sap.ui.define([
                 console.log("ObjectKeyss=" + oObjectKeys);
             }
 
-
+            //TODO Using the wrong paramaters here 
+            // for getting the criteria for validate component or not.
             var ssfcParameters = {
                 plant: sfcplant,
                 objectKeys: oObjectKeys,
                 objectType: "MATERIAL", //Material
-                classType: "001"
-                //,classes:[""]//
+                classType: "001",
+                classes:["Z_MATERIAL_DM"]
+               
 
             }
             var that = this;
@@ -400,6 +400,7 @@ sap.ui.define([
             var ssfcParameters = {
                 plant: sfcplant,
                 operation: sfcOperation,
+                quantity:1,
                 resource: sfcResource,
                 sfcs: psfcs
                 //,processLot:"""
@@ -414,14 +415,14 @@ sap.ui.define([
                         sUrl,
                         ssfcParameters,
                         function (oResponseData) {
-                            that.showSuccessMessage("complete done", true);
+                            //that.showSuccessMessage("complete done", true);
                             //oLogger.info("compolete success");
                             resolve(oResponseData);
                         },
-                        //The error call back for the /classification/v1/read
+                        //The error call back for the sfc/v1/sfcs/complete?async=false"
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("Complete  API call failed " + sHttpErrorMessage);
-                            that.showErrorMessage(oError, true);
+                           // that.showErrorMessage(oError, true);
                             reject(oError);
                         })
                 });
@@ -486,6 +487,10 @@ sap.ui.define([
         },
         // ----- End startAllSfcs async
 
+        /** TODO too narrow use of the API it will be better to get the full response in an Object 
+         * and use the object to get the SFCs and other properties included in the response
+         * 
+         */
 
 
         getAllSfcsInOrder: async function (porder) {
@@ -549,9 +554,76 @@ sap.ui.define([
                 await Promise.all(promises);
                 return startableSFCS;
             } catch (error) {
-                console.error(error); // Log any errors
+                console.log(error); // Log any errors
             }
         },
+        //** */
+        // planned components API Endpoint (from Asssembly)
+        getplannedComponents: async function () {
+    
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
+            //set the required params we plant and sfc
+            var selection = this.getPodSelectionModel().getSelections();
+            var thesfc = selection[0].getSfc().getSfc();
+            var params = {
+                plant: this.getPodController().getUserPlant(),
+                sfc: thesfc
+            }
+            var that = this;
+            var oResponseData = await new Promise((resolve, reject) => {
+
+                that.ajaxGetRequest(sUrl, params, function (oResponseData) {
+
+                    //TODO remove this but take some code from it (extraction of
+                    //Component and compnent description)
+                    //that.ComponentAPISucsess(oResponseData);
+                    resolve(oResponseData);
+
+                },
+                    function (Error, sHttpErrorMessage) {
+                        that.ComponentAPIError(Error, sHttpErrorMessage);
+                        reject("Error in tring to planned components");
+                    });
+            });
+            return oResponseData;
+
+        },
+        /**vetComponentsToValidate
+         * 
+         */
+
+        vetComponentsToValidate: async function (componentstovet) {
+            var vettedComponets = [];
+            var promises = componentstovet.map(item => {
+                return this.bGetVettedComponent(item)
+                    .then(isVetted => {
+                        if (isVetted) {
+                            vettedComponets.push(item);
+                        }
+                    });
+            });
+            try {
+                await Promise.all(promises);
+                return vettedComponets;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        /**
+         * bGetVetttedComponent
+         * @param {get} component 
+         */
+        bGetVettedComponent: async function ( component){
+            //getClassification 
+            var bVetting = await this.classificationRead(component);
+            oLogger.info("classification: "+JSON.stringify(bVetting));
+
+            //fow and until i decipher the classifcatio object
+            return true;
+
+        },
+
 
         /**
          * 
@@ -566,11 +638,123 @@ sap.ui.define([
             
 
         },
+        orchestrateComponentVetting: async function (eOrder, tevt) {
+            tevt.getSource().setBusy(true);
+            if (!eOrder) {
+                this.showErrorMessage("Order Not selected");
+                return;
+            }
+            var theComponents = await this.getplannedComponents();
+               //the return value is an array of objects and every object has 3 properties we need to transforn this to an array of values which represent
+            // the components which are the first property of the array to be tranformed.
+         
+            var transformedComponets = this.traformComponentData(theComponents);
+            //now vet the components by getting the classification of the component.
+            var vettedComponents = await this.vetComponentsToValidate(transformedComponets);
+            
+
+            tevt.getSource().setBusy(false);
+
+
+        },
+
+        
+        onStartOrderEnhanced: function ( evt ){
+            var eOrder = this.getView().byId("OrderValueLabel").getText();
+            
+            this.StartOrderEnhanced(eOrder, evt);
+
+        },
+
+        StartOrderEnhanced : async function (eOrder , tevt  ){
+
+            if (!eOrder){
+                this.showErrorMessage("Order Not selected");
+                return;
+            }
+            //Get all the sfcs in the order
+            var allSfcs =  await this.getAllSfcsInOrder(eOrder);
+            oLogger.info("sfcs found in Order  "+ allSfcs.length);
+
+            var oStartOrderButton = this.getView().byId("OrderStartType");
+            oStartOrderButton.setBusy(true);
+
+            //start all the sfcs in the order (that are startable)
+           
+            var sfcstostart=await this.filterStartableSFCs(allSfcs);
+            
+            oLogger.info("startablesfcs size  "+ sfcstostart.length);
+
+            // do the validation
+            
+            //get the components
+            var theComponents= await this.getComponentsForSfc();
+            //vet the components through classification information.
+            //var vetted = await this.vettedComponents();
+
+            //set the model for the fragment dialog to validate the components
+
+            var componetsModel=this.ComponentAPISucsess(theComponents);
+
+            var theDialog = await this.openValidateDialog();
+
+
+
+
+
+
+
+
+         if (0) {
+            var vlength=sfcstostart.length;
+            //set the parameters for the start outside the loop
+            var bAskOnce = false;
+            var bComplete =true;
+             //var sfcUrl =this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
+             var sfcplant = this.getPodController().getUserPlant();
+             var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
+             var sfcResource = this.getPodSelectionModel().getResource().getResource();
+
+            for (let i = 0; i < vlength; i += SFCS_CHUNK) {
+                 oStartOrderButton.setBusy(true);
+                let startSFCChunk = sfcstostart.slice(i, i +SFCS_CHUNK);    
+               
+                var chunckStartd= await this.startAllSfcs (
+                    sfcOperation,
+                    sfcplant,
+                    sfcResource,
+                    1,
+                    startSFCChunk
+                    );
+
+                    oStartOrderButton.setBusy(false);
+                    var oCompleteButton = this.getView().byId("CompletComp");
+
+                    //do the complete 
+                    oCompleteButton.setBusy(true);
+                        var bcompleted=await this.completeOrderSfcs(startSFCChunk);
+                        oCompleteButton.setBusy(false);          
+                        //tevt.getSource().setBusy(false);
+            }
+         }
+        },
+
+        onTestFunction : function (evt){
+            //this.showSuccessMessage("OnTestButton ");
+            var eOrder = this.getView().byId("OrderValueLabel").getText();
+            
+            this.orchestrateComponentVetting(eOrder,evt);
+           
+            
+       
+
+        },
 
         orchestrateStartAllSfcswrkf: async function (eOrder,tevt){
             tevt.getSource().setBusy(true);
             if (!eOrder){
                 this.showErrorMessage("Order Not selected");
+                return;
             }
             var allSfcs =  await this.getAllSfcsInOrder(eOrder);
             oLogger.info("sfcs found in Order  "+ allSfcs.length);
@@ -622,7 +806,7 @@ sap.ui.define([
                 await Promise.all(promises);
                 return activeSFCS;
             } catch (error) {
-                console.error("signoff has failed!! line 627"); // Log any errors
+                console.log("signoff has failed!! line 627"); // Log any errors
             }
         },
 
@@ -683,9 +867,25 @@ sap.ui.define([
         //---------------- End getStartable SFCs -------------------------
 
 
+        traformComponentData: function (oResponseData) {
+            var result = oResponseData;
+            var justthecomponentArr = [];
+            for (let i = 0; i < result.length; i++) {
+
+                justthecomponentArr.push(result[i].component);
+            }
+            this.getView().getModel().setProperty("/justcomponentslist", justthecomponentArr);
+            return justthecomponentArr;
+        },
 
 
-
+        /**
+         * 
+         * @param {*} oResponseData ther Response from the 
+         *                      "/assembly/v1/plannedComponents"
+         * @returns componentModel --also sets the table model /components
+         * 
+         */
 
         ComponentAPISucsess: function (oResponseData) {
             var result = oResponseData;
@@ -700,10 +900,12 @@ sap.ui.define([
 
             }
             this.getView().getModel().setProperty("/components", componentmodel.components);
+            return componentmodel;
         },
         ComponentAPIError: function (oError, sHttpErrorMessage) {
             //TODO do something with the error condition
         },
+
         startAllSfcsWorkflow: async function(order){
             oLogger.info("start all sfcsworkflow clicked");
         },
@@ -762,8 +964,71 @@ sap.ui.define([
             } //--
         },
 
+        onValidateComponent: function() {
+            var oTable = this.byId("Vcomp");
+            var oInput = this.byId("componentInput");
+            var sValue = oInput.getValue();
+            var aItems = oTable.getItems();
+            var bFound = false;
+        
+            for (var i = 0; i < aItems.length; i++) {
+                var oItem = aItems[i];
+                var oCells = oItem.getCells();
+        
+                if (oCells[0].getText() === sValue) {
+                    bFound = true;
+                    oCells[2].setText("Y");
+                    oItem.addStyleClass("markFound"); // Add a CSS class to change the color of the row
+                    break;
+                }
+            }
+        
+            if (!bFound) {
+               
+                this.showErrorMessage("Componente Not found -- Validation failed");
+                this._oDialog.close();
+                this._oResolve(0); // Resolve the Promise with 0
+            } else {
+                var bAllChecked = aItems.every(function(oItem) {
+                    return oItem.getCells()[2].getText() === "Y";
+                });
+        
+                if (bAllChecked) {
+                    this._oDialog.close();
+                    this._oResolve(1); // Resolve the Promise with 1
+                }
+            }
+        },
+
+        openValidateDialog: async function() {
+            return new Promise((resolve, reject) => {
+                this._oResolve = resolve;
+              if (!this._oDialog) {
+                this.loadFragment({
+                  name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation",
+                  controller: this
+                }).then(function(oDialog) {
+                  this._oDialog = oDialog;
+                  this.getView().addDependent(this._oDialog);
+                  this._oDialog.attachAfterClose(null, function(oEvent) {
+                    if (/*oEvent.getParameter("origin") === sap.ui.core.CloseCallOrigin.Escape*/ false) {
+                      resolve(-1); // Resolve the Promise with -1 if the dialog was closed with the Escape key
+                    } else {
+                      resolve("result"); // Resolve the Promise with the stored value otherwise
+                    }
+                  }, this);
+                  this._oDialog.open();
+                }.bind(this)).catch(function(oError) {
+                  reject(oError); // Reject the Promise if there's an error
+                });
+              } else {
+                this._oDialog.open();
+              }
+            });
+          },
+
         //----------------- End Validate Components ----------
-        onValidatePressed: function (evt) {
+        onValidatePressedx: function (evt) {
             var howManyMatched = 0;
             this.showSuccessMessage("Validate button pressed");
             var scannedOrEntered = this.byId("componentInput").getValue();
@@ -880,6 +1145,9 @@ sap.ui.define([
 
 
 
+
+
+
         //[Order IS]
         //----- Lutron Start Order ----------------
         // The StartOrder button was pressed
@@ -974,7 +1242,7 @@ sap.ui.define([
                         // and call start with one chunk of SFCs at a time.
 
                         for (let i = 0; i < vlength; i += SFCS_CHUNK) {
-                            let startSFCChunk = validatedsfcs.slice(i, i += SFCS_CHUNK);
+                            let startSFCChunk = validatedsfcs.slice(i, i + SFCS_CHUNK);
                             //we have a bunch of startable sfcs here in 
 
                             console.log("chunck = " + startSFCChunk.length);
@@ -1162,10 +1430,8 @@ sap.ui.define([
             //operation  somehow is not in the selection Model so we will 
             // Use the one that we stored from the WorklistChangeEvent
             var oOperation = this._getWorkListSelectedOperationGlb();
-
             if (oOperation === "notset") {
                 oOperation = "";
-
             }
 
             var oModelData = {
@@ -1186,7 +1452,8 @@ sap.ui.define([
                 wrklstrow: wrklstcurrentsel,
                 material: "",
                 startableSFCs: [],
-                activeSFCs:[]
+                activeSFCs:[],
+                components:[]
             };
 
             if (aOperations.length === 1) {
@@ -1207,7 +1474,7 @@ sap.ui.define([
         },
 
         /*--------------------------------------------------------
-         * This enables receiving Notification messages in the plugin
+         * This enables receiving Notification messages in the plugina
          * @override
          */
         isSubscribingToNotifications: function () {

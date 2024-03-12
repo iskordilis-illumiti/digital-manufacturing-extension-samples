@@ -58,12 +58,12 @@
                             <Label id="orderTypeLable" text="Order" class="sapUiTinyMarginEnd"/>
                             <!-- <Input id="OrderTypeInput"  value="{/orderselect}" class="sapUiTinyMarginEnd"/> -->
                             <Label id="OrderValueLabel" text="{/orderselect}" class="sapUiTinyMarginEnd"/>
-                            <Button  id="OrderStartType" text="Start Order" type="Emphasized" press=".onStartOrder" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
-                            <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponents" class="sapUiTinyMarginEnd"/>
+                            <Button  id="OrderStartType" text="Start Order" type="Emphasized" press=".onStartOrderEnhanced" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
+                            <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponentsEn" class="sapUiTinyMarginEnd"/>
                             <Button id="CompletComp" text="Complete Order" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onCompleteComponents" class="sapUiTinyMarginEnd"/>
                             <Button id="SignoffComp" text="Sign Off Components" visible="true"  press=".onSignOffComponents" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestFunction" text="function" visible="true"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
-                            <Button id="TestFlow" text="test flow" visible="true"  press=".onTestWorkflow" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="TestFlow" text="test flow signoff" visible="true"  press=".onTestWorkflow" class="sapUiTinyMarginEnd signoff-color"/>
 
 
 

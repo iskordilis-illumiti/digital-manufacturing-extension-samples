@@ -22,7 +22,7 @@
             <Button
                 text="Validate"
                 type="Emphasized"
-                press="onValidatePressed"
+                press="onValidateComponent"
             />
                 </Toolbar>
                 </headerToolbar>
