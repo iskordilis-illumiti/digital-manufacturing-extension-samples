@@ -142,6 +142,8 @@ sap.ui.define([
             //get the operation into wrklstsopersel
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
+            oLogger.info("onWorklistSelectEvent")
+
 
             //this.stateMachineLutronProcess(START_ORDER_ON);
             // don't process if same object firing event
@@ -231,7 +233,8 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                throw new Error (error);                                        
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
             }
         },
 
@@ -283,7 +286,8 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                throw new Error (error);
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
 
             }
         },
@@ -306,7 +310,7 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                throw new Error (error);
+                this.showErrorMessage("An error was detected: " + error, true);
 
             }
         },
@@ -339,7 +343,8 @@ sap.ui.define([
                 return goodToStart;
             }
             catch (error) {
-                throw new Error(error);
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
             }
         },
         // ------------------ End getSfcStatusIsStartable --------
@@ -388,7 +393,8 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                throw new Error ( error);
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
 
             }
 
@@ -431,7 +437,8 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                throw new Error (error);
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
 
             }
 
@@ -472,7 +479,7 @@ sap.ui.define([
                         sUrl,
                         ssfcParameters,
                         function (oResponseData) {
-                           
+
                             //that.showSuccessMessage("Order Started succesfully!", true);
                             //oLogger.info("Orderstart success");
                             resolve(oResponseData);
@@ -486,7 +493,8 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                throw new Error(error);
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
             }
 
         },
@@ -529,7 +537,8 @@ sap.ui.define([
                 return oResponseData;
             } catch (error) {
                 that._debugGlb("getAllSfcInOrder Error");
-                throw new Error (error);
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
 
             }
         },
@@ -637,12 +646,16 @@ sap.ui.define([
          * 
          */
         onTestWorkflow: function (evt) {
-            //this.showSuccessMessage("onTestWorkFlow clickd!");
-            var eOrder = this.getView().byId("OrderValueLabel").getText();
-            this.orchestrateStartAllSfcswrkf(eOrder, evt);
+            try {
+                //this.showSuccessMessage("onTestWorkFlow clickd!");
+                var eOrder = this.getView().byId("OrderValueLabel").getText();
+                this.orchestrateStartAllSfcswrkf(eOrder, evt);
 
+            } catch (error) {
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
 
-
+            }
         },
 
         orchestrateComponentVetting: async function (eOrder, tevt) {
@@ -660,20 +673,21 @@ sap.ui.define([
             var vettedComponents = await this.vetComponentsToValidate(transformedComponets);
             tevt.getSource().setBusy(false);
         },
-        onEnterPressed(evt){
+        onEnterPressed(evt) {
             this.onValidateComponent();
 
         },
 
 
         onStartOrderEnhanced: function (evt) {
-           try {
-             var eOrder = this.getView().byId("OrderValueLabel").getText();
-             this.StartOrderEnhanced(eOrder, evt);
-           } catch (error) {
-            this.showError("An Error has occured: "+error);
-            
-           }
+            try {
+                var eOrder = this.getView().byId("OrderValueLabel").getText();
+                this.StartOrderEnhanced(eOrder, evt);
+            } catch (error) {
+                this.showError("An Error has occured: " + error);
+                this.resetButtonsWrkfl();
+
+            }
         },
         /**
          * StartOrderEnhanced
@@ -694,7 +708,7 @@ sap.ui.define([
             var sfcplant = this.getPodController().getUserPlant();
             var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
             var sfcResource = this.getPodSelectionModel().getResource().getResource();
-           
+
 
             oStartOrderButton.setBusy(true);
 
@@ -702,7 +716,8 @@ sap.ui.define([
             try {
                 var allSfcs = await this.getAllSfcsInOrder(eOrder);
             } catch (error) {
-                this.showErrorMessage("failed to get Sfc's for the Order: "+eOrder,true,true);
+                this.showErrorMessage("failed to get Sfc's for the Order: " + eOrder, true, true);
+                this.resetButtonsWrkfl();
             }
             oLogger.info("sfcs found in Order  " + allSfcs.length);
 
@@ -711,22 +726,23 @@ sap.ui.define([
                 var sfcstostart = await this.filterStartableSFCs(allSfcs);
 
             } catch (error) {
-                throw new Error (error);
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
 
-            }            
-oLogger.info("startablesfcs size  " + sfcstostart.length);
+            }
+            oLogger.info("startablesfcs size  " + sfcstostart.length);
             var vlength = sfcstostart.length;
             // if vlength === 0 the API call will be bypassed
             //Start the loop going through all the chunck of sfcs
-            var sfcstocomplete=[];
-            var sfcstocompletelength=0;
-                if (!vlength===0){
-                    sfcstocomplete = sfcstostart;
-                } else {
-                    //TODO this will fail if sfcs are have status on HOLD etc
-                    sfcstocomplete=allSfcs;         
-                    sfcstocompletelength= allSfcs.length;      
-                }
+            var sfcstocomplete = [];
+            var sfcstocompletelength = 0;
+            if (!vlength === 0) {
+                sfcstocomplete = sfcstostart;
+            } else {
+                //TODO this will fail if sfcs are have status on HOLD etc
+                sfcstocomplete = allSfcs;
+                sfcstocompletelength = allSfcs.length;
+            }
             for (let i = 0; i < vlength; i += SFCS_CHUNK) {
 
                 oStartOrderButton.setBusy(true);
@@ -742,12 +758,13 @@ oLogger.info("startablesfcs size  " + sfcstostart.length);
                         startSFCChunk
                     );
                 } catch (error) {
-                    throw new Error (error);
+                    this.showErrorMessage("An error was detected: " + error.message, true);
+                    this.resetButtonsWrkfl();
 
                 }
                 //now all the sfcs in the sfctostart are started so will be used in the complete
                 //check to see if we have active or some other status sfcs
-                
+
 
 
                 oStartOrderButton.setBusy(false);
@@ -789,8 +806,8 @@ oLogger.info("startablesfcs size  " + sfcstostart.length);
             try {
                 var theComponents = await this.getComponentsForSfc();
             } catch (error) {
-                throw new Error (error);
-
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
             }
 
             var componetsModel = this.ComponentAPISucsess(theComponents);
@@ -807,34 +824,37 @@ oLogger.info("startablesfcs size  " + sfcstostart.length);
                     oValidationButton.setBusy(false);
                     oCompleteButton.setBusy(false);
                     oStartOrderButton.setBusy(false);
-                    
+
                     return;
                 }
             } catch (error) {
-                throw new Error (error);
-                
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
+
             }
             oCompleteButton.setBusy(true);
             //Now start the loop to complete all sfcs
             for (let i = 0; i < sfcstocompletelength; i += SFCS_CHUNK) {
 
-            try {
+                try {
                     let startSFCChunk = sfcstocomplete.slice(i, i + SFCS_CHUNK);
                     var bcompleted = await this.completeOrderSfcs(startSFCChunk);
-                    oLogger.info("value of complete promise return:"+bcompleted);
-            } catch (error) {
-                
-            }
+                    oLogger.info("value of complete promise return:" + bcompleted);
+                } catch (error) {
+                    this.showErrorMessage("Error in complete:"+error.message,true);
+
+                }
 
             } //enfor complete
             // reset all buttons to setbusy false
             oCompleteButton.setBusy(false);
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
-          
+
         },
 
         onTestFunction: function (evt) {
+
             //this.showSuccessMessage("OnTestButton ");
             var eOrder = this.getView().byId("OrderValueLabel").getText();
             this.orchestrateComponentVetting(eOrder, evt);
@@ -843,7 +863,7 @@ oLogger.info("startablesfcs size  " + sfcstostart.length);
         orchestrateStartAllSfcswrkf: async function (eOrder, tevt) {
             tevt.getSource().setBusy(true);
             if (!eOrder) {
-                this.showErrorMessage("Order Not selected");
+                this.showErrorMessage("An error was detected: " + error.message, true);
                 return;
             }
             var allSfcs = await this.getAllSfcsInOrder(eOrder);
@@ -1050,6 +1070,18 @@ oLogger.info("startablesfcs size  " + sfcstostart.length);
                 this._oDialog.open();
             } //--
         },
+        resetButtonsWrkfl: function () {
+            var oValidationButton = this.getView().byId("ValidateCompType");
+            var oStartOrderButton = this.getView().byId("OrderStartType");
+            var oCompleteButton = this.getView().byId("CompletComp");
+            oCompleteButton.setBusy(false);
+            oValidationButton.setBusy(false);
+            oStartOrderButton.setBusy(false);
+
+
+
+        },
+
 
         onValidateComponent: function () {
             var oTable = this.byId("Vcomp");
