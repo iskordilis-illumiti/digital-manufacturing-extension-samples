@@ -18,11 +18,12 @@
          <headerToolbar>
                 <Toolbar>
                  <Label text="Enter or Scan component"  width="35%"/>
-            <Input id="componentInput" width="35%"/>
+            <Input id="componentInput" submit="onEnterPressed" width="35%"/>
             <Button
                 text="Validate"
                 type="Emphasized"
                 press="onValidateComponent"
+                
             />
                 </Toolbar>
                 </headerToolbar>
