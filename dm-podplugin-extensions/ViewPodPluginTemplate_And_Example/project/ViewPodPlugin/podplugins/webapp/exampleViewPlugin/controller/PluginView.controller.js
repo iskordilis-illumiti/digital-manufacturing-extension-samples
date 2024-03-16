@@ -842,6 +842,8 @@ sap.ui.define([
             //start all the sfcs in the order (that are startable)
             try {
                 var sfcstostart = await this.filterStartableSFCs(allSfcs);
+
+                // 
             } catch (error) {
                 this.showErrorMessage("An error was detected: " + error.message, true);
                 this.resetButtonsWrkfl();
@@ -862,6 +864,7 @@ sap.ui.define([
                 sfcstocomplete = allSfcs;
                 sfcstocompletelength = allSfcs.length;
             }
+            //bypass this loop if VALIDATE or COMPLETE
             for (let i = 0; i < vlength; i += SFCS_CHUNK) {
 
                 oStartOrderButton.setBusy(true);
@@ -884,10 +887,9 @@ sap.ui.define([
                 //now all the sfcs in the sfctostart are started so will be used in the complete
                 //check to see if we have active or some other status sfcs
 
-
-
                 oStartOrderButton.setBusy(false);
             } //end for 
+            //************* Validatation starts here ********************
 
             oValidationButton.setBusy(true);
 
@@ -897,8 +899,6 @@ sap.ui.define([
                 this.showErrorMessage("An error was detected: " + error.message, true);
                 this.resetButtonsWrkfl();
             }
-
-
 
             // tranform theComponents into single row array with just the component
             var tranformedComponents = this.transformComponentData(theComponents);
@@ -932,6 +932,9 @@ sap.ui.define([
                 }
             } // if (vetted)
             oCompleteButton.setBusy(true);
+            //****** Validation  ends here ******************************
+
+            //****** Complete starts here *******************************
             //Now start the loop to complete all sfcs
             for (let i = 0; i < sfcstocompletelength; i += SFCS_CHUNK) {
 
@@ -941,7 +944,6 @@ sap.ui.define([
                     oLogger.info("value of complete promise return:" + bcompleted);
                 } catch (error) {
                     this.showErrorMessage("Error in complete:" + error.message, true);
-
                 }
 
             } //enfor complete
@@ -949,15 +951,23 @@ sap.ui.define([
             oCompleteButton.setBusy(false);
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
-
+            // ****************** Complete ends here ********************
         },
 
         onTestFunction: function (evt) {
+        if (0) {
+                //this.showSuccessMessage("OnTestButton ");
+                var eOrder = this.getView().byId("OrderValueLabel").getText();
+                this.orchestrateComponentVetting(eOrder, evt);
+           
+        }
+        let t=this.getDynamicPageTitle();
+        let p= this.getPluginName();
+        oLogger.info("pluign name , page title "+t+" "+p);
+        var oconfig=this.getConfiguration();
+        oLogger.info("Configuration = "+oconfig);
 
-            //this.showSuccessMessage("OnTestButton ");
-            var eOrder = this.getView().byId("OrderValueLabel").getText();
-            this.orchestrateComponentVetting(eOrder, evt);
-        },
+     },
 
         orchestrateStartAllSfcswrkf: async function (eOrder, tevt) {
             tevt.getSource().setBusy(true);
@@ -986,7 +996,6 @@ sap.ui.define([
             //oLogger.info("signoff sfcs from 450 to the end");
             //var therestof=await this.signOffSfcs(thesfcs);
             tevt.getSource().setBusy(false);
-
         },
 
         onSignOffComponents: function (evt) {
@@ -1034,15 +1043,11 @@ sap.ui.define([
                 }
                 var result = tm;
                 return goodActive;
-
             }
             catch (error) {
-                oLogger.infor("Error in the catch of getSfcStatusActive");
-
+                oLogger.info("Error in the catch of getSfcStatusActive");
             }
         },
-
-
 
         //-------- getStartableSFCS --------------------
         // filter the passed sfcs from the selected order
@@ -1115,12 +1120,12 @@ sap.ui.define([
                         { component: result[i].component, description: result[i].componentDescription, validated: "N" }
                     );
                 }
-
             }
             // put the table model into the View Model
             this.getView().getModel().setProperty("/components", componentmodel.components);
             return componentmodel;
         },
+        
         ComponentAPIError: function (oError, sHttpErrorMessage) {
             //TODO do something with the error condition
         },

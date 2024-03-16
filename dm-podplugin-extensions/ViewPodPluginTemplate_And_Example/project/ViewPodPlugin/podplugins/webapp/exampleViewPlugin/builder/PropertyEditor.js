@@ -19,13 +19,19 @@ sap.ui.define([
             this.addSwitch(oPropertyFormContainer, "notificationsEnabled", oData);
             this.addSwitch(oPropertyFormContainer, "closeButtonVisible", oData);
             this.addSwitch(oPropertyFormContainer,"validateComponentsVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"executeStartOrderOnlyVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"executefullFlowVisible",oData);
+            
         },
 
         getDefaultPropertyData: function () {
             var oData = {
                 "notificationsEnabled": true,
                 "closeButtonVisible": false,
-                "validateComponentsVisible": false
+                "validateComponentsVisible": false,
+                "executeStartOrderOnlyVisible": false,
+                "executefullFlowVisible": true
+
             };
 
             return oData;
