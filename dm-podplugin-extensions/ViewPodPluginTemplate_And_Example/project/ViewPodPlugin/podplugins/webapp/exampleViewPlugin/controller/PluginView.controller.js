@@ -191,6 +191,55 @@ sap.ui.define([
          *
          *****************************************************************/
 
+        /**
+         * prtLoadingValidation
+         * Assumes a current Selection Model 
+         * @param {*} psfcs 
+         * @returns 
+         */
+        prtLoadingValidation: async function (psfcs) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/tool/v1/prtLoadValidation";
+            var sfcplant = this.getPodController().getUserPlant();
+            var sfcOperation = this._getWorkListSelectedOperationGlb();
+            var sfcResource = this.getPodSelectionModel().getResource().getResource();
+
+            var selection = this.getPodSelectionModel().getSelections();
+            var thesfc = selection[0].getSfc().getSfc();
+            var xpsfcs=[];
+            xpsfcs.push(thesfc);
+
+
+
+            var ssfcParameters = {
+                plant: sfcplant,
+                sfcs:xpsfcs,// psfcs
+                operation: sfcOperation,
+                resource: sfcResource,  
+            };
+            var that = this;
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            //that.showSuccessMessage("Signoff done", true);
+                            //oLogger.info("compolete success");
+                            resolve(oResponseData);
+                        },                       
+                        function (oError, sHttpErrorMessage) {
+                            oLogger.info("prtLoadingValidation API call failed " + sHttpErrorMessage);
+                            that.showErrorMessage(oError, true);
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            } catch (error) {
+                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.resetButtonsWrkfl();
+            }
+        },
+
         //--------------------- SignOFSfcs -------------------------------
         signOffSfcs: async function (psfcs) {
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/signoff?async=false";
@@ -772,7 +821,14 @@ sap.ui.define([
             var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
             var sfcResource = this.getPodSelectionModel().getResource().getResource();
 
+            var prtval= await this.prtLoadingValidation();
 
+            if (prtval.validationResult !=="PRT_PASSED"){
+                showErrorMessage("Tool validation failed , StartOrder will not continue");
+                return;
+            }
+
+            oLogger.info("retuls of prtLoadingValidation is: "+prtval.validationResult);
             oStartOrderButton.setBusy(true);
 
             //Get all the sfcs in the order
