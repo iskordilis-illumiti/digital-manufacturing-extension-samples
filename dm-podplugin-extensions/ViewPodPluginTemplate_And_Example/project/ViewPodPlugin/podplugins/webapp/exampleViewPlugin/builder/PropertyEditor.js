@@ -25,7 +25,7 @@ sap.ui.define([
             var oData = {
                 "notificationsEnabled": true,
                 "closeButtonVisible": false,
-                "validateComponentsVisible":false
+                "validateComponentsVisible": false
             };
 
             return oData;

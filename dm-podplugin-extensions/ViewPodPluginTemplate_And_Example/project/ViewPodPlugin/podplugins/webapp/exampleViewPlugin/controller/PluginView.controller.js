@@ -220,7 +220,7 @@ sap.ui.define([
                         sUrl,
                         ssfcParameters,
                         function (oResponseData) {
-                            that.showSuccessMessage("Signoff done", true);
+                            //that.showSuccessMessage("Signoff done", true);
                             //oLogger.info("compolete success");
                             resolve(oResponseData);
                         },
@@ -362,7 +362,7 @@ sap.ui.define([
                 console.log("ObjectKeyss=" + oObjectKeys);
             }
 
-            //TODO Using the wrong paramaters here 
+            //TODO recheck parameters
             // for getting the criteria for validate component or not.
             var ssfcParameters = {
                 plant: sfcplant,
@@ -370,7 +370,6 @@ sap.ui.define([
                 objectType: "MATERIAL", //Material
                 classType: "001",
                 classes: ["Z_MATERIAL_DM"]
-
 
             }
             var that = this;
@@ -380,7 +379,7 @@ sap.ui.define([
                         sUrl,
                         ssfcParameters,
                         function (oResponseData) {
-                            that.showSuccessMessage("classication called  succesfully!", true);
+                            //that.showSuccessMessage("classication called  succesfully!", true);
                             //oLogger.info("classification call success");
                             resolve(oResponseData);
                         },
@@ -608,18 +607,18 @@ sap.ui.define([
          */
 
         vetComponentsToValidate: async function (componentstovet) {
-            var vettedComponets = [];
+            var vettedComponents = [];
             var promises = componentstovet.map(item => {
                 return this.bGetVettedComponent(item)
                     .then(isVetted => {
                         if (isVetted) {
-                            vettedComponets.push(item);
+                            vettedComponents.push(item);
                         }
                     });
             });
             try {
                 await Promise.all(promises);
-                return vettedComponets;
+                return vettedComponents;
             } catch (error) {
                 console.log(error);
             }
@@ -632,9 +631,73 @@ sap.ui.define([
         bGetVettedComponent: async function (component) {
             //getClassification 
             var bVetting = await this.classificationRead(component);
+
+            var cclasees = bVetting.classificationClasses; //an array of objects
+            if (cclasees.length==0){ 
+                //if there are no classification 
+                // validate the component
+                return true;
+             }
+            
+            var characteristicDetails = cclasees[0].characteristicDetails;
+            var cclassesLength = characteristicDetails.length;
+            var bValidate = true;
+            var plants = [];
+            var resource ="NONE";
+
+            for (var i = 0; i < cclassesLength; i++) {
+                oLogger.info(JSON.stringify(characteristicDetails[i]));
+                var zname=characteristicDetails[i].name;
+
+                if (zname === "Z_MATERIALVALIDATION") {
+                    let name = characteristicDetails[i].name;
+                    let position = characteristicDetails[i].positionNumber;
+                    let status = characteristicDetails[i].status;
+                    if (position == 0 && status === "1") {
+                        bValidate = true;
+                    }
+                    else {
+                        bValidate = false;
+                    }
+                }
+                if (zname === "Z_MATERIALVALIDATION_PLANT") {
+                    let allowedvaluelist=characteristicDetails[i].allowedValueList; // it should be an array
+                    let allowedvaluelistlength=allowedvaluelist.length;
+                    if (allowedvaluelistlength){
+                        for (let z=0; z<allowedvaluelistlength; z++){
+                            let zplant = allowedvaluelist[z].value;
+                            plants.push(zplant);
+                        }
+                    }
+                }
+                if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
+                    let zresource=characteristicDetails[i].characteristicDecription;
+                    resource=zresource;
+                }
+            }
+
             oLogger.info("classification: " + JSON.stringify(bVetting));
 
-            //fow and until i decipher the classifcatio object
+            //if have validate "NO" then return true immediatelly
+         if (!bValidate)
+         {
+            return bValidate;
+         }
+         var currentPlant = this.getPodController().getUserPlant();
+         if (plants.includes(currentPlant)){
+            return false;
+         }
+         // requires current selection model
+         var currentResource = this.getPodSelectionModel().getResource().getResource();
+         if (resource ==="NONE"){
+            return true;
+         } else{
+            if (resource === currentResource){
+                return false;
+            }
+         }
+
+
             return true;
 
         },
@@ -720,23 +783,23 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
             oLogger.info("sfcs found in Order  " + allSfcs.length);
-
             //start all the sfcs in the order (that are startable)
             try {
                 var sfcstostart = await this.filterStartableSFCs(allSfcs);
-
             } catch (error) {
                 this.showErrorMessage("An error was detected: " + error.message, true);
                 this.resetButtonsWrkfl();
-
             }
             oLogger.info("startablesfcs size  " + sfcstostart.length);
             var vlength = sfcstostart.length;
-            // if vlength === 0 the API call will be bypassed
+            // if vlength === 0 the API call to start will be bypassed
             //Start the loop going through all the chunck of sfcs
             var sfcstocomplete = [];
             var sfcstocompletelength = 0;
             if (!vlength === 0) {
+                // Assume that the sfc's will be started
+                // so the completesfc will take the value of sfctostart
+                // which after the start will have status of ACTIVE
                 sfcstocomplete = sfcstostart;
             } else {
                 //TODO this will fail if sfcs are have status on HOLD etc
@@ -768,38 +831,7 @@ sap.ui.define([
 
 
                 oStartOrderButton.setBusy(false);
-
-                // oValidationButton.setBusy(true);
-
-                // // set the validation dialog with the model for the 
-                // // table
-                // var theComponents = await this.getComponentsForSfc();
-                // var componetsModel = this.ComponentAPISucsess(theComponents);
-
-                // //vet the components against the classificaton entry
-                // //var vetted = await this.vettedComponents();
-
-                // var theDialog = await this.openValidateDialog();
-                // console.log("theDialog=" + theDialog);
-                // oValidationButton.setBusy(false);
-                // if (theDialog === 1) {
-                //     this.showSuccessMessage("Component Validation passsed Process will continue.", true, true);
-                //     oStartOrderButton.setBusy(false);
-
-                //     //---------------
-                //     //do the complete 
-                //     oCompleteButton.setBusy(true);
-                //     var bcompleted = await this.completeOrderSfcs(startSFCChunk);
-                //     oCompleteButton.setBusy(false);
-
-                // } else {
-                //     this.showErrorMessage("Component Validation failed  Process will stop.", true, true);
-                //     oValidationButton.setBusy(false);
-                // }
-            } //endfor start
-
-            // we want to do the validation here and then start another loop
-            // to do the complete for all the started sfcs
+            } //end for 
 
             oValidationButton.setBusy(true);
 
@@ -810,28 +842,39 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
 
-            var componetsModel = this.ComponentAPISucsess(theComponents);
 
+
+            // tranform theComponents into single row array with just the component
+            var tranformedComponents = this.transformComponentData(theComponents);
             //vet the components against the classificaton entry
-            //var vetted = await this.vettedComponents();
+            var vetted = await this.vetComponentsToValidate(tranformedComponents);
+            oLogger.info(" vetted= " + vetted);
 
-            try {
-                var theDialog = await this.openValidateDialog();
-                console.log("theDialog=" + theDialog);
-                oValidationButton.setBusy(false);
-                if (theDialog !== COMPONENT_VALIDATION_SUCCESS) {
-                    //set a valid state first
+            //now create a table Model only with the vetted components
+            // and put it into the View Model
+            // in case is the vetted array is empty it means to bypass
+            // the validation
+            if (vetted.length !== 0) {
+                var componetsModel = this.ComponentAPISucsess(theComponents, vetted);
+
+                try {
+                    var theDialog = await this.openValidateDialog();
+                    console.log("theDialog=" + theDialog);
                     oValidationButton.setBusy(false);
-                    oCompleteButton.setBusy(false);
-                    oStartOrderButton.setBusy(false);
+                    if (theDialog !== COMPONENT_VALIDATION_SUCCESS) {
+                        //set a valid state first
+                        oValidationButton.setBusy(false);
+                        oCompleteButton.setBusy(false);
+                        oStartOrderButton.setBusy(false);
 
-                    return;
+                        return;
+                    }
+                } catch (error) {
+                    this.showErrorMessage("An error was detected: " + error.message, true);
+                    this.resetButtonsWrkfl();
+
                 }
-            } catch (error) {
-                this.showErrorMessage("An error was detected: " + error.message, true);
-                this.resetButtonsWrkfl();
-
-            }
+            } // if (vetted)
             oCompleteButton.setBusy(true);
             //Now start the loop to complete all sfcs
             for (let i = 0; i < sfcstocompletelength; i += SFCS_CHUNK) {
@@ -841,7 +884,7 @@ sap.ui.define([
                     var bcompleted = await this.completeOrderSfcs(startSFCChunk);
                     oLogger.info("value of complete promise return:" + bcompleted);
                 } catch (error) {
-                    this.showErrorMessage("Error in complete:"+error.message,true);
+                    this.showErrorMessage("Error in complete:" + error.message, true);
 
                 }
 
@@ -973,9 +1016,16 @@ sap.ui.define([
         },
 
         //---------------- End getStartable SFCs -------------------------
+        /**
+         * 
+         * transformComponentData: function (oResponseData) 
+         * 
+         * @param {*} oResponseData this is the return from
+         * the call to getComponets that is an array of multiple columns
+         * @returns an array with the components (the column 0 of the passed param)
+         */
 
-
-        traformComponentData: function (oResponseData) {
+        transformComponentData: function (oResponseData) {
             var result = oResponseData;
             var justthecomponentArr = [];
             for (let i = 0; i < result.length; i++) {
@@ -994,18 +1044,24 @@ sap.ui.define([
          * 
          */
 
-        ComponentAPISucsess: function (oResponseData) {
+        ComponentAPISucsess: function (oResponseData,vettedComponents) {
             var result = oResponseData;
             var componentmodel = {
                 components: []
             };
             for (let i = 0; i < result.length; i++) {
+                //check first if the component if is vetted
+                //if not skip it.
+                var rowColumn0 = result[i].component;
 
-                componentmodel.components.push(
-                    { component: result[i].component, description: result[i].componentDescription, validated: "N" }
-                );
+                if (vettedComponents.includes(rowColumn0)) {
+                    componentmodel.components.push(
+                        { component: result[i].component, description: result[i].componentDescription, validated: "N" }
+                    );
+                }
 
             }
+            // put the table model into the View Model
             this.getView().getModel().setProperty("/components", componentmodel.components);
             return componentmodel;
         },
@@ -1518,7 +1574,7 @@ sap.ui.define([
                         sMaterial = "";
                         if (aSelections[i].getItem()) {
                             sMaterial = aSelections[i].getItem().getItem();
-                        }
+                        } 
                         sShopOrder = "";
                         if (aSelections[i].getShopOrder()) {
                             sShopOrder = aSelections[i].getShopOrder().getShopOrder();
@@ -1528,7 +1584,7 @@ sap.ui.define([
                             //Situation.
                         }
 
-                        aInputs[aInputs.length] = {
+                        aInputs[aInputs.length] = { 
                             input: sInput,
                             sfc: sSfc,
                             material: sMaterial,
