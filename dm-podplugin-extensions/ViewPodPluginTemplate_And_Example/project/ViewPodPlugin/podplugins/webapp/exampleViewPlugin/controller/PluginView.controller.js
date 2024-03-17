@@ -8,7 +8,7 @@ sap.ui.define([
     "use strict";
     //TODO Break this into multiple modules with well defined dependencies
     // Then import into this main module for the plugin
-    
+
 
     var oLogger = Log.getLogger("Lutron View Plugin", Log.Level.INFO);
     //------------------------------------------------------------------------
@@ -139,7 +139,7 @@ sap.ui.define([
             //get the operation into wrklstsopersel
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
-            oLogger.info("onWorklistSelectEvent")
+            oLogger.info("onWorklistSelectEvent");
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -153,12 +153,12 @@ sap.ui.define([
         _getWorkListSelectedRowDataGlb: function () {
             return wrklstcurrentsel;
         },
-        
+
         _debugGlb: function (m, b) {
 
             try {
                 var param = b ? b : "";
-                var param0 = m ? m : "info:"
+                var param0 = m ? m : "info:";
 
                 oLogger.info(param0 + " : " + "  param:" + param);
 
@@ -197,14 +197,14 @@ sap.ui.define([
 
             var selection = this.getPodSelectionModel().getSelections();
             var thesfc = selection[0].getSfc().getSfc();
-            var xpsfcs=[];
+            var xpsfcs = [];
             xpsfcs.push(thesfc);
 
             var ssfcParameters = {
                 plant: sfcplant,
-                sfcs:xpsfcs,// psfcs
+                sfcs: xpsfcs,// psfcs
                 operation: sfcOperation,
-                resource: sfcResource,  
+                resource: sfcResource,
             };
             var that = this;
             try {
@@ -216,7 +216,7 @@ sap.ui.define([
                             //that.showSuccessMessage("Signoff done", true);
                             //oLogger.info("compolete success");
                             resolve(oResponseData);
-                        },                       
+                        },
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("prtLoadingValidation API call failed " + sHttpErrorMessage);
                             that.showErrorMessage(oError, true);
@@ -234,14 +234,14 @@ sap.ui.define([
          * @returns true or false depending if we have 
          *          a selection model
          */
-        bCheckSelectionModel: function (){
+        bCheckSelectionModel: function () {
             var selection = this.getPodSelectionModel().getSelections();
-            if (selection.length ===0){
+            if (selection.length === 0) {
                 return false;
             } else {
                 var thesfc = selection[0].getSfc().getSfc();
                 return true;
-            }         
+            }
         },
 
         //--------------------- SignOFSfcs -------------------------------
@@ -323,7 +323,7 @@ sap.ui.define([
                     var thePlant = this.getPodController().getUserPlant();
 
                     if (!thePlant || !thePlant) {
-                        console.log("we have not made a selection")
+                        console.log("we have not made a selection");
                         return;
                     }
 
@@ -339,7 +339,7 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                this.showErrorMessage("An error was detected: getComponentsForSfc" , true);
+                this.showErrorMessage("An error was detected: getComponentsForSfc", true);
                 this.resetButtonsWrkfl();
 
             }
@@ -415,7 +415,7 @@ sap.ui.define([
                 console.log("ObjectKeyss=" + oObjectKeys);
             }
 
-            
+
             // for getting the criteria for validate component or not.
             var ssfcParameters = {
                 plant: sfcplant,
@@ -444,7 +444,7 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                this.showErrorMessage("An error was detected: classificationRead " , true);
+                this.showErrorMessage("An error was detected: classificationRead ", true);
                 this.resetButtonsWrkfl();
             }
         },
@@ -453,7 +453,7 @@ sap.ui.define([
         //--
         //------------------  completeOrderSfcs ------------------
         completeOrderSfcs: async function (psfcs) {
-            if(! this.bCheckSelectionModel()){
+            if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("Nothing selected to complete");
                 return;
             }
@@ -490,7 +490,7 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                this.showErrorMessage("An error was detected: completeOrderSfcs" , true);
+                this.showErrorMessage("An error was detected: completeOrderSfcs", true);
                 this.resetButtonsWrkfl();
             }
         },
@@ -544,7 +544,7 @@ sap.ui.define([
                 });
                 return oResponseData;
             } catch (error) {
-                this.showErrorMessage("An error was detected: startAllSfcs" , true);
+                this.showErrorMessage("An error was detected: startAllSfcs", true);
                 this.resetButtonsWrkfl();
             }
 
@@ -556,6 +556,43 @@ sap.ui.define([
          * 
          */
 
+        getAllSfcsInOrderSameOperation: async function (porder, poperation) {
+            var ePlant = this.getPodController().getUserPlant();
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/order/v1/orders";
+            oLogger.info("sUrl : " + sUrl);
+            //Set the parameters
+            var oParameters = {
+                order: porder,
+                plant: ePlant
+            };
+            var that = this;
+
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxGetRequest(
+                        sUrl,
+                        oParameters,
+                        function (oResponseData) { //Orders response
+                            that._debugGlb("Order response reached");
+
+                            var sfcSfcs = oResponseData["sfcs"];
+                            resolve(sfcSfcs);
+                        }, function (oError, sHttpErrorMessage) {
+                            reject(oError);
+
+                        });
+
+
+                }); //cp
+                return oResponseData;
+            } catch (error) {
+                that._debugGlb("getAllSfcInOrderSameOperation Error");
+                this.showErrorMessage("An error was detected: getAllSfcsInOrderSameOperation", true);
+                this.resetButtonsWrkfl();
+
+            }
+
+        },
 
         getAllSfcsInOrder: async function (porder) {
             var ePlant = this.getPodController().getUserPlant();
@@ -588,7 +625,7 @@ sap.ui.define([
                 return oResponseData;
             } catch (error) {
                 that._debugGlb("getAllSfcInOrder Error");
-                this.showErrorMessage("An error was detected: getAllSfcsInOrder" , true);
+                this.showErrorMessage("An error was detected: getAllSfcsInOrder", true);
                 this.resetButtonsWrkfl();
 
             }
@@ -685,21 +722,21 @@ sap.ui.define([
             var bVetting = await this.classificationRead(component);
 
             var cclasees = bVetting.classificationClasses; //an array of objects
-            if (cclasees.length==0){ 
+            if (cclasees.length == 0) {
                 //if there are no classification 
                 // validate the component
                 return true;
-             }
-            
+            }
+
             var characteristicDetails = cclasees[0].characteristicDetails;
             var cclassesLength = characteristicDetails.length;
             var bValidate = true;
             var plants = [];
-            var resource ="NONE";
+            var resource = "NONE";
 
             for (var i = 0; i < cclassesLength; i++) {
                 oLogger.info(JSON.stringify(characteristicDetails[i]));
-                var zname=characteristicDetails[i].name;
+                var zname = characteristicDetails[i].name;
 
                 if (zname === "Z_MATERIALVALIDATION") {
                     let name = characteristicDetails[i].name;
@@ -713,45 +750,41 @@ sap.ui.define([
                     }
                 }
                 if (zname === "Z_MATERIALVALIDATION_PLANT") {
-                    let allowedvaluelist=characteristicDetails[i].allowedValueList; // it should be an array
-                    let allowedvaluelistlength=allowedvaluelist.length;
-                    if (allowedvaluelistlength){
-                        for (let z=0; z<allowedvaluelistlength; z++){
+                    let allowedvaluelist = characteristicDetails[i].allowedValueList; // it should be an array
+                    let allowedvaluelistlength = allowedvaluelist.length;
+                    if (allowedvaluelistlength) {
+                        for (let z = 0; z < allowedvaluelistlength; z++) {
                             let zplant = allowedvaluelist[z].value;
                             plants.push(zplant);
                         }
                     }
                 }
                 if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
-                    let zresource=characteristicDetails[i].characteristicDecription;
-                    resource=zresource;
+                    let zresource = characteristicDetails[i].characteristicDecription;
+                    resource = zresource;
                 }
             }
 
             oLogger.info("classification: " + JSON.stringify(bVetting));
 
             //if have validate "NO" then return true immediatelly
-         if (!bValidate)
-         {
-            return bValidate;
-         }
-         var currentPlant = this.getPodController().getUserPlant();
-         if (plants.includes(currentPlant)){
-            return false;
-         }
-         // requires current selection model
-         var currentResource = this.getPodSelectionModel().getResource().getResource();
-         if (resource ==="NONE"){
-            return true;
-         } else{
-            if (resource === currentResource){
+            if (!bValidate) {
+                return bValidate;
+            }
+            var currentPlant = this.getPodController().getUserPlant();
+            if (plants.includes(currentPlant)) {
                 return false;
             }
-         }
-
-
+            // requires current selection model
+            var currentResource = this.getPodSelectionModel().getResource().getResource();
+            if (resource === "NONE") {
+                return true;
+            } else {
+                if (resource === currentResource) {
+                    return false;
+                }
+            }
             return true;
-
         },
 
 
@@ -767,7 +800,7 @@ sap.ui.define([
                 this.orchestrateStartAllSfcswrkf(eOrder, evt);
 
             } catch (error) {
-                this.showErrorMessage("An error was detected: onTestWorkflow " , true);
+                this.showErrorMessage("An error was detected: onTestWorkflow ", true);
                 this.resetButtonsWrkfl();
             }
         },
@@ -793,7 +826,7 @@ sap.ui.define([
 
 
         onStartOrderEnhanced: function (evt) {
-            if(! this.bCheckSelectionModel()){
+            if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("No Order is selected");
                 return;
             }
@@ -824,18 +857,18 @@ sap.ui.define([
             var sfcplant = this.getPodController().getUserPlant();
             var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
             var sfcResource = this.getPodSelectionModel().getResource().getResource();
-            var oconfig=this.getConfiguration();
+            var oconfig = this.getConfiguration();
             console.log(oconfig);
-           
-            var prtval= await this.prtLoadingValidation();
+
+            var prtval = await this.prtLoadingValidation();
             //make sure that prtval is valid and accomodate a prt api failure
 
-            if (!prtval || prtval.validationResult !=="PRT_PASSED"){
+            if (!prtval || prtval.validationResult !== "PRT_PASSED") {
                 this.showErrorMessage("Tool validation failed , StartOrder will not continue");
                 return;
             }
 
-            oLogger.info("retuls of prtLoadingValidation is: "+prtval.validationResult);
+            oLogger.info("retuls of prtLoadingValidation is: " + prtval.validationResult);
             oStartOrderButton.setBusy(true);
 
             //Get all the sfcs in the order
@@ -852,7 +885,7 @@ sap.ui.define([
 
                 // 
             } catch (error) {
-                this.showErrorMessage("An error was detected: StartOrderEnhanced " , true);
+                this.showErrorMessage("An error was detected: StartOrderEnhanced ", true);
                 this.resetButtonsWrkfl();
             }
             oLogger.info("startablesfcs size  " + sfcstostart.length);
@@ -887,7 +920,7 @@ sap.ui.define([
                         startSFCChunk
                     );
                 } catch (error) {
-                    this.showErrorMessage("An error was detected: startAllSfcs " , true);
+                    this.showErrorMessage("An error was detected: startAllSfcs ", true);
                     this.resetButtonsWrkfl();
 
                 }
@@ -896,18 +929,18 @@ sap.ui.define([
 
                 oStartOrderButton.setBusy(false);
                 //check if this is do start Order only
-           
-                }
-                if (oconfig.executeStartOrderOnlyVisible){
-                    return;
+
+            }
+            if (oconfig.executeStartOrderOnlyVisible) {
+                return;
             } //end for 
-            //************* Validatation starts here ********************
+            //************* Validation starts here ********************
 
             oValidationButton.setBusy(true);
             try {
                 var theComponents = await this.getComponentsForSfc();
             } catch (error) {
-                this.showErrorMessage("An error was detected: oValidationButton " , true);
+                this.showErrorMessage("An error was detected:getComponentsForSfc ", true);
                 this.resetButtonsWrkfl();
             }
 
@@ -953,7 +986,7 @@ sap.ui.define([
                     var bcompleted = await this.completeOrderSfcs(startSFCChunk);
                     oLogger.info("value of complete promise return:" + bcompleted);
                 } catch (error) {
-                    this.showErrorMessage("Error in complete:" , true);
+                    this.showErrorMessage("Error in completeOrderSfcs:", true);
                 }
 
             } //enfor complete
@@ -964,13 +997,13 @@ sap.ui.define([
             // ****************** Complete ends here ********************
         },
 
-         /**
-         * validateComponentsEnhanced (assumes valid selection Model)
-         * @returns 
-         */
+        /**
+        * validateComponentsEnhanced (assumes valid selection Model)
+        * @returns 
+        */
 
-         validateComponentsEnhanced: async function () {
-            if(! this.bCheckSelectionModel()){
+        validateComponentsEnhanced: async function () {
+            if (!this.bCheckSelectionModel()) {
                 showErrorMessage("No selection was found");
                 return;
             }
@@ -1013,7 +1046,7 @@ sap.ui.define([
                         return;
                     }
                 } catch (error) {
-                    this.showErrorMessage("An error was detected: " + error.message, true);
+                    this.showErrorMessage("An error was detected in Validation Dialog ", true);
                     this.resetButtonsWrkfl();
 
                 }
@@ -1021,21 +1054,21 @@ sap.ui.define([
         },
 
         onTestFunction: function (evt) {
-        if (0) {
+            if (0) {
                 //this.showSuccessMessage("OnTestButton ");
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
                 this.orchestrateComponentVetting(eOrder, evt);
-           
-        }
-        bchk=this.bCheckSelectionModel();
-        console.log(bchk);
-        let t=this.getDynamicPageTitle();
-        let p= this.getPluginName();
-        oLogger.info("pluign name , page title "+t+" "+p);
-        var oconfig=this.getConfiguration();
-        oLogger.info("Configuration = "+oconfig);
 
-     },
+            }
+            bchk = this.bCheckSelectionModel();
+            console.log(bchk);
+            let t = this.getDynamicPageTitle();
+            let p = this.getPluginName();
+            oLogger.info("pluign name , page title " + t + " " + p);
+            var oconfig = this.getConfiguration();
+            oLogger.info("Configuration = " + oconfig);
+
+        },
 
         orchestrateStartAllSfcswrkf: async function (eOrder, tevt) {
             tevt.getSource().setBusy(true);
@@ -1072,7 +1105,7 @@ sap.ui.define([
             signoffpromise.then(result => {
                 console.log("signoff done");
             }).catch(error => {
-                console.log("Error in signoff components:Line 609");
+                console.log("Error in signoff components:Line 1108");
             });
         },
 
@@ -1090,7 +1123,7 @@ sap.ui.define([
                 await Promise.all(promises);
                 return activeSFCS;
             } catch (error) {
-                console.log("signoff has failed!! line 627"); // Log any errors
+                console.log("signoff has failed!! line 1126"); // Log any errors
             }
         },
 
@@ -1099,13 +1132,13 @@ sap.ui.define([
 
                 var oResponseData = await this.getSfcStatus(thesfc);
                 var code = oResponseData.status.code;
-                var sfcsWithCodeStartable = (code == SFCS_ACTIVE) ? oResponseData.sfc : "";
+                var sfcsWithCodeActive = (code == SFCS_ACTIVE) ? oResponseData.sfc : "";
                 var goodActive = (code == SFCS_ACTIVE) ? true : false;
                 // we want to push this to the model
                 // console.log("status code="+code);
                 var tm = this.getView().getModel().getProperty("/activeSFCs");
                 if (sfcsWithCodeStartable) {
-                    tm.push(sfcsWithCodeStartable);
+                    tm.push(sfcsWithCodeActive);
                     this.getView().getModel().setProperty("/activeSFCs", tm);
                     //this._debugGlb("Setting tm in the model after validate called", tm);
                 }
@@ -1173,7 +1206,7 @@ sap.ui.define([
          * 
          */
 
-        ComponentAPISucsess: function (oResponseData,vettedComponents) {
+        ComponentAPISucsess: function (oResponseData, vettedComponents) {
             var result = oResponseData;
             var componentmodel = {
                 components: []
@@ -1193,9 +1226,9 @@ sap.ui.define([
             this.getView().getModel().setProperty("/components", componentmodel.components);
             return componentmodel;
         },
-        
+
         ComponentAPIError: function (oError, sHttpErrorMessage) {
-            this.showErrorMessage(oError+ "  "+sHttpErrorMessage,true);
+            this.showErrorMessage(oError + "  " + sHttpErrorMessage, true);
         },
 
         startAllSfcsWorkflow: async function (order) {
@@ -1373,9 +1406,8 @@ sap.ui.define([
                     this.byId("dcomponentValidator").close();
                     return "Abort";
                 }
-
-
             } else {
+                //TODO How do we react here?
 
             }
         },
@@ -1395,9 +1427,10 @@ sap.ui.define([
             // get SFCS
             // check for validation.
 
-                this.completeOrderSfcs();
+            this.completeOrderSfcs();
 
         },
+        
         onSignOffComponents: function (evt) {
             this.showSuccessMessage("Validate button pressed");
 
@@ -1706,7 +1739,7 @@ sap.ui.define([
                         sMaterial = "";
                         if (aSelections[i].getItem()) {
                             sMaterial = aSelections[i].getItem().getItem();
-                        } 
+                        }
                         sShopOrder = "";
                         if (aSelections[i].getShopOrder()) {
                             sShopOrder = aSelections[i].getShopOrder().getShopOrder();
@@ -1716,7 +1749,7 @@ sap.ui.define([
                             //Situation.
                         }
 
-                        aInputs[aInputs.length] = { 
+                        aInputs[aInputs.length] = {
                             input: sInput,
                             sfc: sSfc,
                             material: sMaterial,
