@@ -140,14 +140,10 @@ sap.ui.define([
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
             oLogger.info("onWorklistSelectEvent")
-
-
-            //this.stateMachineLutronProcess(START_ORDER_ON);
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
             }
-            // loadModel first since it creates a model from scratch 
             this.loadModel();
         },
 
@@ -180,7 +176,6 @@ sap.ui.define([
 
         _debugWrklstOperSelected() {
             this._debugGlb("wrklstpersel", wrklstcurrentsel);
-
         },
         /****************************************************************
          * 
@@ -204,8 +199,6 @@ sap.ui.define([
             var thesfc = selection[0].getSfc().getSfc();
             var xpsfcs=[];
             xpsfcs.push(thesfc);
-
-
 
             var ssfcParameters = {
                 plant: sfcplant,
@@ -236,15 +229,19 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
         },
+        /**
+         *  bCheckSelectionModel
+         * @returns true or false depending if we have 
+         *          a selection model
+         */
         bCheckSelectionModel: function (){
             var selection = this.getPodSelectionModel().getSelections();
             if (selection.length ===0){
                 return false;
             } else {
+                var thesfc = selection[0].getSfc().getSfc();
                 return true;
-            }
-            var thesfc = selection[0].getSfc().getSfc();
-            
+            }         
         },
 
         //--------------------- SignOFSfcs -------------------------------
@@ -285,7 +282,7 @@ sap.ui.define([
                             oLogger.info("Signoff   API call failed " + sHttpErrorMessage);
                             that.showErrorMessage(oError, true);
                             reject(oError);
-                        })
+                        });
                 });
                 return oResponseData;
             } catch (error) {
@@ -426,7 +423,6 @@ sap.ui.define([
                 objectType: "MATERIAL", //Material
                 classType: "001",
                 classes: ["Z_MATERIAL_DM"]
-
             }
             var that = this;
             try {
@@ -444,15 +440,13 @@ sap.ui.define([
                             oLogger.info("Classsication API call failed " + sHttpErrorMessage);
                             that.showErrorMessage(oError, true);
                             reject(oError);
-                        })
+                        });
                 });
                 return oResponseData;
             } catch (error) {
                 this.showErrorMessage("An error was detected: classificationRead " , true);
                 this.resetButtonsWrkfl();
-
             }
-
         },
         //--------------------- End classificationRead ---------------
 
@@ -460,7 +454,7 @@ sap.ui.define([
         //------------------  completeOrderSfcs ------------------
         completeOrderSfcs: async function (psfcs) {
             if(! this.bCheckSelectionModel()){
-                showErrorMessage("Nothing selected to complete");
+                this.showErrorMessage("Nothing selected to complete");
                 return;
             }
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
@@ -492,15 +486,13 @@ sap.ui.define([
                             oLogger.info("Complete  API call failed " + sHttpErrorMessage);
                             // that.showErrorMessage(oError, true);
                             reject(oError);
-                        })
+                        });
                 });
                 return oResponseData;
             } catch (error) {
                 this.showErrorMessage("An error was detected: completeOrderSfcs" , true);
                 this.resetButtonsWrkfl();
-
             }
-
         },
         //-----------------------End CompleteOrderSfcs -------------------
 
@@ -777,7 +769,6 @@ sap.ui.define([
             } catch (error) {
                 this.showErrorMessage("An error was detected: onTestWorkflow " , true);
                 this.resetButtonsWrkfl();
-
             }
         },
 
@@ -798,7 +789,6 @@ sap.ui.define([
         },
         onEnterPressed(evt) {
             this.onValidateComponent();
-
         },
 
 
@@ -813,7 +803,6 @@ sap.ui.define([
             } catch (error) {
                 this.showError("An Error has occured: " + error);
                 this.resetButtonsWrkfl();
-
             }
         },
         /**
@@ -839,9 +828,10 @@ sap.ui.define([
             console.log(oconfig);
            
             var prtval= await this.prtLoadingValidation();
+            //make sure that prtval is valid and accomodate a prt api failure
 
-            if (prtval.validationResult !=="PRT_PASSED"){
-                showErrorMessage("Tool validation failed , StartOrder will not continue");
+            if (!prtval || prtval.validationResult !=="PRT_PASSED"){
+                this.showErrorMessage("Tool validation failed , StartOrder will not continue");
                 return;
             }
 
@@ -914,7 +904,6 @@ sap.ui.define([
             //************* Validatation starts here ********************
 
             oValidationButton.setBusy(true);
-
             try {
                 var theComponents = await this.getComponentsForSfc();
             } catch (error) {
@@ -944,7 +933,6 @@ sap.ui.define([
                         oValidationButton.setBusy(false);
                         oCompleteButton.setBusy(false);
                         oStartOrderButton.setBusy(false);
-
                         return;
                     }
                 } catch (error) {
@@ -1030,7 +1018,6 @@ sap.ui.define([
 
                 }
             } // if (vetted)
-
         },
 
         onTestFunction: function (evt) {
@@ -1071,7 +1058,7 @@ sap.ui.define([
 
             //It does not work because the list contain SFC with status DONE
             oLogger.info("signoff 450 sfcs");
-            var partofthesfcs = thesfcs.slice(0, 450);
+            var partofthesfcs = thesfcs.slice(0, 100);
             var signedoff = await this.signOffSfcs(partofthesfcs);
             partofthesfcs = thesfcs.slice(450, thesfcs.lenght);
             //oLogger.info("signoff sfcs from 450 to the end");
