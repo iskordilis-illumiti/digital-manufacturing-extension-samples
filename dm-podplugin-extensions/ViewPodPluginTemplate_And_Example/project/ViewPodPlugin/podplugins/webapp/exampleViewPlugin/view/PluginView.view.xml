@@ -62,7 +62,7 @@
                             <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponentsEn" class="sapUiTinyMarginEnd"/>
                             <Button id="CompletComp" text="Complete Order" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onCompleteOrderSfcs" class="sapUiTinyMarginEnd"/>
                             <Button id="SignoffComp" text="Sign Off Components" visible="false"  press=".onSignOffComponents" class="sapUiTinyMarginEnd signoff-color"/>
-                            <Button id="TestFunction" text="function" visible="true"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="TestFunction" text="function" visible="false"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestFlow" text="Signoff" visible="true"  press=".onTestWorkflow" class="sapUiTinyMarginEnd signoff-color"/>
 
 
