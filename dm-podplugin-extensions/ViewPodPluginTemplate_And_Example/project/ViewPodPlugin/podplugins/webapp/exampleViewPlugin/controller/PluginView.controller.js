@@ -485,6 +485,7 @@ sap.ui.define([
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("Complete  API call failed " + sHttpErrorMessage);
                             // that.showErrorMessage(oError, true);
+                            
                             reject(oError);
                         });
                 });
@@ -922,6 +923,8 @@ sap.ui.define([
                 } catch (error) {
                     this.showErrorMessage("An error was detected: startAllSfcs ", true);
                     this.resetButtonsWrkfl();
+                    return;
+                    
 
                 }
                 //now all the sfcs in the sfctostart are started so will be used in the complete
@@ -996,6 +999,14 @@ sap.ui.define([
             oStartOrderButton.setBusy(false);
             // ****************** Complete ends here ********************
         },
+        onValidateComponentsEn : async function(){
+            var valres= await this.validateComponentsEnhanced();
+            oLogger.info ( "value of validateComponentEn= "+ valres);      
+
+        },
+
+
+
 
         /**
         * validateComponentsEnhanced (assumes valid selection Model)
@@ -1004,7 +1015,7 @@ sap.ui.define([
 
         validateComponentsEnhanced: async function () {
             if (!this.bCheckSelectionModel()) {
-                showErrorMessage("No selection was found");
+                this.showErrorMessage("No selection was found");
                 return;
             }
             var oValidationButton = this.getView().byId("ValidateCompType");
@@ -1137,7 +1148,7 @@ sap.ui.define([
                 // we want to push this to the model
                 // console.log("status code="+code);
                 var tm = this.getView().getModel().getProperty("/activeSFCs");
-                if (sfcsWithCodeStartable) {
+                if (goodActive) {
                     tm.push(sfcsWithCodeActive);
                     this.getView().getModel().setProperty("/activeSFCs", tm);
                     //this._debugGlb("Setting tm in the model after validate called", tm);
@@ -1418,17 +1429,41 @@ sap.ui.define([
          */
 
         completeSfcs: async function () {
-            var oComplete = await this.completeOrderSfcs();
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("No Order is selected");
+            }
+
+            var oCompleteButton = this.getView().byId("CompletComp");
+            var eOrder = this.getView().byId("OrderValueLabel").getText();
+            var allSfcs = await this.getAllSfcsInOrder(eOrder);
+            var sfcstocomplete = await this.filterActiveSFCS(allSfcs);
+            var clength= sfcstocomplete.length;
+            if (clength ===0 ){
+                this.showErrorMessage("Nothing to complete!");
+                this.resetButtonsWrkfl();
+
+                return;
+            }
+            oCompleteButton.setBusy(true);
+            for (let i = 0; i < clength; i+=SFCS_CHUNK) {
+                let completeSFCChunk = sfcstocomplete.slice(i, i + SFCS_CHUNK);  
+
+                try {
+                    var oComplete = await this.completeOrderSfcs(completeSFCChunk);
+                } catch (error) {
+                    this.showErrorMessage("Sfc complete failed ");
+                    this.resetButtonsWrkfl();
+                    return;
+                    
+                }
+            }
+            oCompleteButton.setBusy(false);
+            return oComplete;
         },
 
 
         onCompleteOrderSfcs: function (evt) {
-            //TODO  complete check for selection
-            // get SFCS
-            // check for validation.
-
-            this.completeOrderSfcs();
-
+            this.completeSfcs();
         },
         
         onSignOffComponents: function (evt) {
