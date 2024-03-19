@@ -48,7 +48,7 @@ sap.ui.define([
     //USE ENABLE_PROMISE to use promise.all to resolve all promises that
     // are called in a loop as in case of getting the SFC status.
     const ENABLE_PROMISE_ALL = true;
-    // start with 50 increase inremenenatally after tests to test stability.
+    // start with 50 increase inrementally after tests to test stability.
     const SFCS_CHUNK = 50;  //dont make this greater than 499 for calling sfc/sfcs/start - move to POD Designer.
     const SFCS_NEW = 401;
     const SFCS_INQUE = 402;
@@ -288,6 +288,107 @@ sap.ui.define([
             } catch (error) {
                 this.showErrorMessage("An error was detected: in signOffSfcs ", true);
                 this.resetButtonsWrkfl();
+            }
+        },
+        getWorklistDataOrderCount : async function(){
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders";
+                    var selection = this.getPodSelectionModel().getSelections();
+                    var thesfc = selection[0].getSfc().getSfc();
+                    var thePlant = this.getPodController().getUserPlant();
+                    var theOperation = this._getWorkListSelectedOperationGlb();
+                    var sfcResource = this.getPodSelectionModel().getResource().getResource();
+
+                    var thisfilter={
+                        operation:theOperation,
+                        resource:sfcResource
+
+
+                    };
+                    var params = {
+                        plant: thePlant,
+                        operation:thisfilter.operation,
+                        resource:sfcResource
+                    };
+
+                    this.ajaxGetRequest(sUrl, params, function (oResponseData) {
+                        resolve(oResponseData);
+                    }, function (Error) {
+                        reject(Error);
+                    });
+                });
+                return oResponseData;
+            } catch (error) {
+                this.showErrorMessage("sfc/v1/worklist/orders failed", true);
+                this.resetButtonsWrkfl();
+
+            }
+
+        },
+
+
+        /**
+         * getWorklistDataOrder
+         * 
+         * it will return an orray of objects  for the given operation , resource and plant
+         * the Additional information is in the returned object , like sfc status , material, bom and other
+         * this is pageable call so  you have to call the API multipe times for large number of returned objects
+         * you can use the $count API to get the number of returned objects.
+         * In reality this is an OData call which has filter cababilty 
+         * @link https://api.sap.com/api/sapdme_sfc/path/getOrderWorkListUsingGET
+         * @param resource
+         * @param operation
+         * @param plant
+         * @returns the order info object
+         * @description it requires valid selectionModel in the work center POD
+         * 
+         */
+
+        getWorklistDataOrder: async function () {
+
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?";
+                    var selection = this.getPodSelectionModel().getSelections();
+                    var thesfc = selection[0].getSfc().getSfc();
+                    var thePlant = this.getPodController().getUserPlant();
+                    var theOperation = this._getWorkListSelectedOperationGlb();
+                    var sfcResource = this.getPodSelectionModel().getResource().getResource();
+
+                   /**
+                    * SAMPLES TODO Delete
+                    * var sUrl = that._oPluginController.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?plant=" + that._getUserPlant();
+                    *sUrl = sUrl + "&workCenter=" + sWorkCenter;
+                    *    sUrl = sUrl + "&allSfcSteps=true&page.size=20&page.offset=" + iPageOffset;
+                    * "https://api./{regionHost}/sfc/v1/worklist/orders?page.size=20&allSfcSteps=false"
+                    * "https://api./{regionHost}/sfc/v1/worklist/orders/$count?allSfcSteps=false")
+                    * xhr.open("GET", "https://api.eu10.dmc.cloud.sap/sfc/v1/worklist/orders?page.size=20&filter.order=100122&allSfcSteps=false");
+                    * 
+                    */
+                    
+                    sUrl=sUrl + "plant="+thePlant;
+                    sUrl=sUrl +"&operation="+theOperation;
+                    sUrl=sUrl +"&resource="+sfcResource;
+                    sUrl=sUrl + "&filter.order=1001844";
+                    // var params = {
+                    //     plant: thePlant,
+                    //     operation:thisfilter.operation,
+                    //     resource:sfcResource,
+                    //     filter:{order:["1001844"]}
+                    // };
+                    //this.ajaxGetRequest(sUrl, params, function (oResponseData)
+                    this.ajaxGetRequest(sUrl, null, function (oResponseData) {
+                        resolve(oResponseData);
+                    }, function (Error) {
+                        reject(Error);
+                    });
+                });
+                return oResponseData;
+            } catch (error) {
+                this.showErrorMessage("sfc/v1/worklist/orders failed", true);
+                this.resetButtonsWrkfl();
+
             }
         },
 
@@ -1064,13 +1165,14 @@ sap.ui.define([
             } // if (vetted)
         },
 
-        onTestFunction: function (evt) {
+        onTestFunction:async function (evt) {
+            var thelist=await this.getWorklistDataOrder();
             if (0) {
                 //this.showSuccessMessage("OnTestButton ");
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
                 this.orchestrateComponentVetting(eOrder, evt);
 
-            }
+            
             bchk = this.bCheckSelectionModel();
             console.log(bchk);
             let t = this.getDynamicPageTitle();
@@ -1078,6 +1180,7 @@ sap.ui.define([
             oLogger.info("pluign name , page title " + t + " " + p);
             var oconfig = this.getConfiguration();
             oLogger.info("Configuration = " + oconfig);
+            }
 
         },
 
@@ -1108,6 +1211,7 @@ sap.ui.define([
             //oLogger.info("signoff sfcs from 450 to the end");
             //var therestof=await this.signOffSfcs(thesfcs);
             tevt.getSource().setBusy(false);
+            
         },
 
         onSignOffComponents: function (evt) {
