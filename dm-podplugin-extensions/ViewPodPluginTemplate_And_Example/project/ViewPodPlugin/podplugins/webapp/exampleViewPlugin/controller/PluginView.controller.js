@@ -26,7 +26,7 @@ sap.ui.define([
         _glbAdd: function (sObj) { this._sfcGoodToStart.push(sObj) },
         _glbErase: function () { this._sfcGoodToStart = [] },
         _glbSet: function (sobj) { this._sfcGoodToStart = sobj },
-    }
+    };
 
     //Simple state machine nodes for the Lutron plugin flow
     const LPNS = -1;
@@ -177,6 +177,38 @@ sap.ui.define([
         _debugWrklstOperSelected() {
             this._debugGlb("wrklstpersel", wrklstcurrentsel);
         },
+
+        simpleStartSfcsPost: function (sOperation, sPlant, sResource, sSfcs ){
+            //marker
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("Can not start - No selection");
+                return;
+            }
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
+            var ButtonsSP= this.byId("TestFunction");
+            //skip the quantity we want to start the full quantity.
+            var ssfcParameters = {
+ 
+                plant: sPlant,
+                operation: sOperation,
+                resource: sResource,
+                sfcs: sSfcs,
+                 
+            };
+            var that=this;
+            this.ajaxPostRequest(
+                sUrl,
+                ssfcParameters,
+                function (oResponseData) {
+                    var p = oResponseData;
+                },
+                function (oError, sHttpErrorMessage) {
+                
+                    oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
+                    that.showErrorMessage(sHttpErrorMessage, true);
+                });
+        },
+
         /****************************************************************
          * 
          *                  APIs DM and Derivatives
@@ -207,27 +239,28 @@ sap.ui.define([
                 resource: sfcResource,
             };
             var that = this;
-            try {
+           
                 var oResponseData = await new Promise((resolve, reject) => {
                     this.ajaxPostRequest(
                         sUrl,
                         ssfcParameters,
                         function (oResponseData) {
-                            //that.showSuccessMessage("Signoff done", true);
-                            //oLogger.info("compolete success");
+                           
                             resolve(oResponseData);
                         },
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("prtLoadingValidation API call failed " + sHttpErrorMessage);
+
+                            if (oError){
                             that.showErrorMessage(oError, true);
+                            } else {
+                                that.showErrorMessage(sHttpErrorMessage, true);
+                            }
                             reject(oError);
                         });
                 });
                 return oResponseData;
-            } catch (error) {
-                this.showErrorMessage("An error was detected: prtLoadingValidation API", true);
-                this.resetButtonsWrkfl();
-            }
+            
         },
         /**
          *  bCheckSelectionModel
@@ -265,7 +298,7 @@ sap.ui.define([
                 //sfcs: null,
                 //processLot: null
                 // dateTime:""
-            }
+            };
             var that = this;
             try {
                 var oResponseData = await new Promise((resolve, reject) => {
@@ -280,7 +313,14 @@ sap.ui.define([
                         //The error call back for the /classification/v1/read
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("Signoff   API call failed " + sHttpErrorMessage);
-                            that.showErrorMessage(oError, true);
+                            if ((typeof oError ==='undefined')){
+                                that.showErrorMessage( sHttpErrorMessage, true);
+
+                            } else {
+                                that.showErrorMessage( oError, true);
+
+                            }
+                           
                             reject(oError);
                         });
                 });
@@ -290,7 +330,7 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
         },
-        getWorklistDataOrderCount : async function(){
+        getWorklistDataSelectedOrderCount : async function(){
             try {
                 var oResponseData = await new Promise((resolve, reject) => {
                     var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders";
@@ -329,7 +369,7 @@ sap.ui.define([
 
 
         /**
-         * getWorklistDataOrder
+         * getWorklistDataSelectedOrder
          * 
          * it will return an orray of objects  for the given operation , resource and plant
          * the Additional information is in the returned object , like sfc status , material, bom and other
@@ -345,7 +385,7 @@ sap.ui.define([
          * 
          */
 
-        getWorklistDataOrder: async function () {
+        getWorklistDataSelectedOrder: async function () {
 
             try {
                 var oResponseData = await new Promise((resolve, reject) => {
@@ -355,6 +395,9 @@ sap.ui.define([
                     var thePlant = this.getPodController().getUserPlant();
                     var theOperation = this._getWorkListSelectedOperationGlb();
                     var sfcResource = this.getPodSelectionModel().getResource().getResource();
+                    var oView = this.getView();
+            var oModel = oView.getModel();
+            var oOrder = oModel.getProperty('/orderselect');
 
                    /**
                     * SAMPLES TODO Delete
@@ -370,7 +413,7 @@ sap.ui.define([
                     sUrl=sUrl + "plant="+thePlant;
                     sUrl=sUrl +"&operation="+theOperation;
                     sUrl=sUrl +"&resource="+sfcResource;
-                    sUrl=sUrl + "&filter.order=1001844";
+                    sUrl=sUrl + "&filter.order="+oOrder;
                     // var params = {
                     //     plant: thePlant,
                     //     operation:thisfilter.operation,
@@ -605,50 +648,42 @@ sap.ui.define([
         // It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402))
         // It returns a Promise with all the started sfcs if succesfull
 
-        startAllSfcs: async function (
-            sOperation,
-            sPlant,
-            sResource,
-            sQuantity,
-            sSfcs) {
+        startAllSfcs: async function ( sOperation, sPlant, sResource,sQuantity, sSfcs) {
+        
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
             //var sfcplant = this.getPodController().getUserPlant();
             //var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
             //var sfcResource = this.getPodSelectionModel().getResource().getResource();
-
+            
+        //TODO find the quantity
             var ssfcParameters = {
+ 
                 plant: sPlant,
                 operation: sOperation,
-                quantity: 1, //TODO find the quantity 
+                quantity:1,
                 resource: sResource,
-                sfcs: sSfcs //,
-                // processLot:""
-            }
+                sfcs: sSfcs,
+                 
+            };
             var that = this;
-            try {
+            
 
                 var oResponseData = await new Promise((resolve, reject) => {
                     this.ajaxPostRequest(
                         sUrl,
                         ssfcParameters,
                         function (oResponseData) {
-
-                            //that.showSuccessMessage("Order Started succesfully!", true);
-                            //oLogger.info("Orderstart success");
                             resolve(oResponseData);
                         },
-                        //The error call back for the /sfc/sfcs/start API call
                         function (oError, sHttpErrorMessage) {
+                        
                             oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
-                            that.showErrorMessage(oError, true);
+                            that.showErrorMessage(sHttpErrorMessage, true);
                             reject(oError);
                         });
                 });
                 return oResponseData;
-            } catch (error) {
-                this.showErrorMessage("An error was detected: startAllSfcs", true);
-                this.resetButtonsWrkfl();
-            }
+            
 
         },
         // ----- End startAllSfcs async
@@ -927,16 +962,17 @@ sap.ui.define([
         },
 
 
-        onStartOrderEnhanced: function (evt) {
+        onStartOrderEnhanced: async function (evt) {
             if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("No Order is selected");
                 return;
             }
             try {
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
-                this.StartOrderEnhanced(eOrder, evt);
+                var res= await this.StartOrderEnhanced(eOrder, evt);
             } catch (error) {
-                this.showError("An Error has occured: " + error);
+                var msg=(!error)?"onStartOrderEnhanced":error;
+                this.showErrorMessage("An Error has occured: " +msg);
                 this.resetButtonsWrkfl();
             }
         },
@@ -962,6 +998,7 @@ sap.ui.define([
             var oconfig = this.getConfiguration();
             console.log(oconfig);
 
+            /********************* Check PRT ****************************/
             var prtval = await this.prtLoadingValidation();
             //make sure that prtval is valid and accomodate a prt api failure
 
@@ -972,6 +1009,7 @@ sap.ui.define([
 
             oLogger.info("retuls of prtLoadingValidation is: " + prtval.validationResult);
             oStartOrderButton.setBusy(true);
+            /********************* End Check PRT*** *********************/
 
             //Get all the sfcs in the order
             try {
@@ -981,7 +1019,8 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
             oLogger.info("sfcs found in Order  " + allSfcs.length);
-            //start all the sfcs in the order (that are startable)
+            
+            /**************************** Filter for only startable sfcs */
             try {
                 var sfcstostart = await this.filterStartableSFCs(allSfcs);
 
@@ -1007,34 +1046,31 @@ sap.ui.define([
                 sfcstocompletelength = allSfcs.length;
             }
             //bypass this loop if VALIDATE or COMPLETE
-            for (let i = 0; i < vlength; i += SFCS_CHUNK) {
+            /**go through a loop with step SFCS_CHUNK to start all sfcs */
 
+            for (let i = 0; i < vlength; i += SFCS_CHUNK) {
                 oStartOrderButton.setBusy(true);
                 let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);
-                //API call /startsfcs
+                        var chunckStartd = this.simpleStartSfcsPost( sfcOperation,sfcplant,sfcResource,startSFCChunk);
+                
+                /** API Call to start all SFCS************** *********/
 
-                try {
-                    var chunckStartd = await this.startAllSfcs(
-                        sfcOperation,
-                        sfcplant,
-                        sfcResource,
-                        1,
-                        startSFCChunk
-                    );
-                } catch (error) {
-                    this.showErrorMessage("An error was detected: startAllSfcs ", true);
-                    this.resetButtonsWrkfl();
-                    return;
+                    // var chunckStartd = await this.startAllSfcs(
+                    //     sfcOperation,
+                    //     sfcplant,
+                    //     sfcResource,
+                    //     1,
+                    //     startSFCChunk
+                    // );
+                    var isfail = (typeof chunckStartd ==='undefined')? true: false;
                     
-
-                }
-                //now all the sfcs in the sfctostart are started so will be used in the complete
-                //check to see if we have active or some other status sfcs
-
-                oStartOrderButton.setBusy(false);
-                //check if this is do start Order only
-
+                    this.showErrorMessage((typeof chunckStartd === 'undefined'),true);
+                    if (isfail){
+                        oStartOrderButton.setBusy(false);
+                    }
             }
+            /****************** End of  LOOP to startall sfcs ***********/
+            oStartOrderButton.setBusy(false);
             if (oconfig.executeStartOrderOnlyVisible) {
                 return;
             } //end for 
@@ -1166,7 +1202,8 @@ sap.ui.define([
         },
 
         onTestFunction:async function (evt) {
-            var thelist=await this.getWorklistDataOrder();
+
+            var thelist=await this.getWorklistDataSelectedOrder();
             if (0) {
                 //this.showSuccessMessage("OnTestButton ");
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
@@ -1527,7 +1564,7 @@ sap.ui.define([
             }
         },
         /**
-         * completSfcs();
+         * completeSfcs();
          *  expects there is a selection in the selection model
          * and an array with with the sfc(s) to complete
          */
@@ -1536,8 +1573,10 @@ sap.ui.define([
             if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("No Order is selected");
             }
-
             var oCompleteButton = this.getView().byId("CompletComp");
+            
+            oCompleteButton.setBusy(true);
+            //Marker
             var eOrder = this.getView().byId("OrderValueLabel").getText();
             var allSfcs = await this.getAllSfcsInOrder(eOrder);
             var sfcstocomplete = await this.filterActiveSFCS(allSfcs);
@@ -1548,6 +1587,9 @@ sap.ui.define([
 
                 return;
             }
+            //Unsure if the status is alredy true and calling again to set to true
+            //so for good measure set to false first.
+            oCompleteButton.setBusy(false);
             oCompleteButton.setBusy(true);
             for (let i = 0; i < clength; i+=SFCS_CHUNK) {
                 let completeSFCChunk = sfcstocomplete.slice(i, i + SFCS_CHUNK);  
@@ -1638,194 +1680,6 @@ sap.ui.define([
 
             }
         },
-
-
-
-
-
-
-        //[Order IS]
-        //----- Lutron Start Order ----------------
-        // The StartOrder button was pressed
-        // We need to start all the sfc's in the order
-        // first call Order API to get all the SFCS for the order
-        // filter the sfc only the ones appropriate for starting (remove sfc's that are Active)
-        // then call start/sfcs to start all the gathered SFCS
-        // 
-        //
-        // TODO Generalize for use in other plugins.
-        // -----------------------------------------
-
-        onStartOrder: function (evt) {
-            var oButtonSO = evt.getSource();
-            this._debugGlb("onStartOrder ");
-            //check to see if a selection have been made
-            var oOp = this._getWorkListSelectedOperationGlb();
-            if (oOp === "notset") {
-                this.showErrorMessage("Order is not selected", true);
-                return;
-            } else {
-                //set the Busy indicator to the startOrders Button.
-
-                oButtonSO.setBusy(true);
-                this.stateMachineLutronProcess(START_ORDER_WORKING);
-            }
-
-            //get the Order from the label box 
-            //var eOrder=this.getView().byId("OrderTypeInput").getValue();
-            var eOrderLabel = this.getView().byId("OrderValueLabel").getText();
-            //get the plant
-            var ePlant = this.getPodController().getUserPlant();
-
-            //for the URL for geting the order 
-            //Need generalization so we dont have to form the URL everytime
-
-            //--- start call sequence - Order -sfc ------------------
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/order/v1/orders";
-            oLogger.info("sUrl : " + sUrl);
-            //Set the parameters
-            var oParameters = {
-                order: eOrderLabel,
-                plant: ePlant
-            };
-            var that = this;
-
-            //---------------------------- ajaxGetRequest /Orders ------------------
-            //get all the sfc in the order calling the order API and extracting sfcs from the response
-            this.ajaxGetRequest(
-                sUrl,
-                oParameters,
-                function (oResponseData) { //Orders response
-                    that._debugGlb("Order response reached");
-
-                    var sfcUrl = that.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
-                    var sfcplant = that.getPodController().getUserPlant();
-                    var sfcOperation = that._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
-                    var sfcResource = that.getPodSelectionModel().getResource().getResource();
-                    var sfcSfcs = oResponseData["sfcs"];
-
-                    // check getStartableSFCS and get in the list (filteredsfcs) only the ones that can be started.
-
-                    console.log("all order sfcs count = " + sfcSfcs.length);
-                    var filteredsfcs = {};
-                    if (!ENABLE_PROMISE_ALL) {
-                        filteredsfcs = that.getStartableSFCS(sfcplant, sfcSfcs);
-                    } else {
-                        //filteredsfcs is a promise 
-                        filteredsfcs = that.filterStartableSFCs(sfcSfcs);
-                    }
-
-
-
-                    // validatedfcs contains the filtered sfcs (new,inqueue)
-                    // below in the ssfcParameters.sfcs
-                    let totalSfcProcecesed = 0;
-
-                    //--- TOP level then chain ---------------------
-                    filteredsfcs.then(validatedsfcs => {
-                        console.log(validatedsfcs);
-                        let vlength = validatedsfcs.length;
-                        if (vlength == 0) {
-                            that.showErrorMessage("Nothing to Start");
-                            return;
-
-
-                        }
-                        console.log("validated sfcs lentgh" + vlength);
-
-                        // Split the sfc list of validated sfcs
-                        // to chuncks of CFCS_CHUNK
-                        // and call start with one chunk of SFCs at a time.
-
-                        for (let i = 0; i < vlength; i += SFCS_CHUNK) {
-                            let startSFCChunk = validatedsfcs.slice(i, i + SFCS_CHUNK);
-                            //we have a bunch of startable sfcs here in 
-
-                            console.log("chunck = " + startSFCChunk.length);
-                            var ssfcParameters = {
-                                plant: sfcplant,
-                                operation: sfcOperation,
-                                quantity: 1, //TODO find the quantity 
-                                resource: sfcResource,
-                                sfcs: startSFCChunk //,
-                                // processLot:""
-                            }
-                            that._debugGlb("onStartOrder: before PostRequest ");
-                            //--------------------ajaxPostRequest /sfc/v1/sfcs ------------
-                            if (EXECUTE_CODE) { //remove line
-                                that.ajaxPostRequest(
-                                    sfcUrl,
-                                    ssfcParameters,
-                                    function (oResponseData) {
-                                        that.showSuccessMessage("Order Started succesfully!", true);
-                                        //oLogger.info("Orderstart success");
-                                        that.stateMachineLutronProcess(START_ORDER_DONE);
-
-                                    },
-                                    //The error call back for the /sfc/sfcs/start API call
-                                    function (oError, sHttpErrorMessage) {
-                                        oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
-                                        that.showErrorMessage(oError, true);
-                                    }
-                                );   //close parenthesis for the Post call (sfs/sfcs/start)
-                            } // remove 
-                            else { // -- remove line 
-                                //debug section will not run when EXECUTE_CODE ==TRUE
-                                console.log("-- ajaPostRequest bypassed");
-                                console.log("to start=" + startSFCChunk.length);
-                                //validate components here and subsequently complete
-
-                                var clresult = that.classificationRead();
-                                //--------------  second level Then chain --------------------------
-                                clresult.then(cl => {
-                                    console.log(cl);
-                                    var vc = that.onValidateComponents();
-                                    //chain here the complete
-                                    var compresult = that.completeOrderSfcs();
-                                    compresult.then(compsfcs => {
-                                        console.log(compsfcs)
-
-                                    });
-
-
-                                });
-                                // ----- end second level then chain 
-
-
-                            } // -- remove 
-                        }
-                    }
-                        //Inside then
-                    );
-                    // ------  End top level then chain 
-                },//--- End Response from start Order block
-                //the error callback for the /Order API call
-                function (oError, sHttpErrorMessage) {
-                    oLogger.info("Errors " + sHttpErrorMessage);
-                });
-            // Hide theBusy operator       
-            oButtonSO.setBusy(false);
-
-            // This might have side effect
-            // so comment out for now.
-            this.loadModel();
-        },
-        //----  End Lutron Start Order ---------
-
-        // ---------------Error - sucess callbacks -----
-        SucessPostSfcs: function (oResponseData) {
-
-        },
-        ErrorPostSfcs: function (oError, sHttpErrorMessage) {
-
-        },
-        SucessGetOrder: function (oResponseData) {
-
-        },
-        ErrorGetOrder: function (oError, sHttpErrorMessage) {
-
-        },
-        //------------End Error Sucess callbacks
 
         //--------------------------------------
         // //[LoadModel IS]
