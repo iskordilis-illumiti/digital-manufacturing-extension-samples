@@ -307,7 +307,7 @@ sap.ui.define([
                         ssfcParameters,
                         function (oResponseData) {
                             //that.showSuccessMessage("Signoff done", true);
-                            //oLogger.info("compolete success");
+                            oLogger.info("signoff success");
                             resolve(oResponseData);
                         },
                         //The error call back for the /classification/v1/read
@@ -315,12 +315,10 @@ sap.ui.define([
                             oLogger.info("Signoff   API call failed " + sHttpErrorMessage);
                             if ((typeof oError ==='undefined')){
                                 that.showErrorMessage( sHttpErrorMessage, true);
-
-                            } else {
+                            } 
+                            else {
                                 that.showErrorMessage( oError, true);
-
-                            }
-                           
+                            }        
                             reject(oError);
                         });
                 });
@@ -330,6 +328,7 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
         },
+
         getWorklistDataSelectedOrderCount : async function(){
             try {
                 var oResponseData = await new Promise((resolve, reject) => {
@@ -853,9 +852,10 @@ sap.ui.define([
         /**
          * bGetVetttedComponent
          * @param {get} component 
+         * @returns true if component will be validated false otherwise
          */
         bGetVettedComponent: async function (component) {
-            //getClassification 
+            //getClassification for the component
             var bVetting = await this.classificationRead(component);
 
             var cclasees = bVetting.classificationClasses; //an array of objects
@@ -867,25 +867,35 @@ sap.ui.define([
 
             var characteristicDetails = cclasees[0].characteristicDetails;
             var cclassesLength = characteristicDetails.length;
+            //Assume bValidate true
             var bValidate = true;
             var plants = [];
             var resource = "NONE";
+            var mvis="NONE";
+            var bmvpinluded=false;
+            var bmvrmatch=false;
 
             for (var i = 0; i < cclassesLength; i++) {
-                oLogger.info(JSON.stringify(characteristicDetails[i]));
+                //oLogger.info(JSON.stringify(characteristicDetails[i]));
                 var zname = characteristicDetails[i].name;
 
                 if (zname === "Z_MATERIALVALIDATION") {
-                    let name = characteristicDetails[i].name;
+                    
                     let position = characteristicDetails[i].positionNumber;
                     let status = characteristicDetails[i].status;
+                    // if we have yes
                     if (position == 0 && status === "1") {
                         bValidate = true;
+                        mvis="YES";
                     }
                     else {
+                        //assume NO
                         bValidate = false;
+                        //return immediately
+                        return bValidate;
                     }
                 }
+                // work with the other cases
                 if (zname === "Z_MATERIALVALIDATION_PLANT") {
                     let allowedvaluelist = characteristicDetails[i].allowedValueList; // it should be an array
                     let allowedvaluelistlength = allowedvaluelist.length;
@@ -894,50 +904,70 @@ sap.ui.define([
                             let zplant = allowedvaluelist[z].value;
                             plants.push(zplant);
                         }
+                        //if the current plant included in the plants in the
+                        // Z_MATERIALVALIDATION_PLANT then validation of the component
+                        // is excluded
+                        var currentPlant = this.getPodController().getUserPlant();
+                        //the plant is included in the plants in Z_MATERIALVALIDATION_PLANT
+                        if (plants.includes(currentPlant)) {
+                            bmvpinluded=true;
+                    
+                        }
                     }
                 }
+                // bValidate is still true so this is the last check.
                 if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
                     let zresource = characteristicDetails[i].characteristicDecription;
-                    resource = zresource;
+                    if (zresource){
+                        resource = zresource;
+                    }
+
+                    // requires current selection model
+                    var currentResource = this.getPodSelectionModel().getResource().getResource();
+                  
+                    if (resource === "NONE") {
+                        bmvrmatch=false;
+                        //the resource matches the resource in the Z_MATERIALVALIDATION_RESOURCE  
+                    } else {
+                        if (resource === currentResource) {
+                            bmvrmatch=true;
+                        }
+                    }
                 }
             }
-
-            oLogger.info("classification: " + JSON.stringify(bVetting));
-
-            //if have validate "NO" then return true immediatelly
-            if (!bValidate) {
-                return bValidate;
-            }
-            var currentPlant = this.getPodController().getUserPlant();
-            if (plants.includes(currentPlant)) {
+            //At this point we can say that MATERIAL_VALIDATION is YES because if NO
+            // we have returned with false earlier in the loop 
+            //if our planr included in the list of plants exclude the component
+             if (bmvpinluded){
                 return false;
-            }
-            // requires current selection model
-            var currentResource = this.getPodSelectionModel().getResource().getResource();
-            if (resource === "NONE") {
-                return true;
-            } else {
-                if (resource === currentResource) {
-                    return false;
-                }
-            }
-            return true;
+             }
+             //if our resource matches the resource in the characterisitics exclude the component
+             if (bmvrmatch){
+                return false;
+             }
+             //the MATERIAL_VALIDATION stayed YES so include the component in validation.
+             return true;
+            
         },
 
 
         /**
          * 
          *              END DM APIs
-         * 
+         * marker2
          */
-        onTestWorkflow: function (evt) {
+        onsignOffAllSfcsOrderOperation: function (evt) {
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("Selection was not found, Aborting");
+                return;
+            }
             try {
                 //this.showSuccessMessage("onTestWorkFlow clickd!");
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
-                this.orchestrateStartAllSfcswrkf(eOrder, evt);
+                this.signOffAllSfcsOrderOperation(eOrder, evt);
 
             } catch (error) {
-                this.showErrorMessage("An error was detected: onTestWorkflow ", true);
+                this.showErrorMessage("An error was detected: onsignoffAllSfcsOrderOperation ", true);
                 this.resetButtonsWrkfl();
             }
         },
@@ -1071,9 +1101,10 @@ sap.ui.define([
             }
             /****************** End of  LOOP to startall sfcs ***********/
             oStartOrderButton.setBusy(false);
-            if (oconfig.executeStartOrderOnlyVisible) {
-                return;
-            } //end for 
+
+            //if (oconfig.executeStartOrderOnlyVisible) {
+             //   return;
+            //} //end for 
             //************* Validation starts here ********************
 
             oValidationButton.setBusy(true);
@@ -1149,7 +1180,10 @@ sap.ui.define([
         * validateComponentsEnhanced (assumes valid selection Model)
         * @returns 
         */
-
+        /** StandAlone validaton Dialog
+         *  validateComponentsEnhanced
+         * 
+         */
         validateComponentsEnhanced: async function () {
             if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("No selection was found");
@@ -1193,6 +1227,11 @@ sap.ui.define([
 
                         return;
                     }
+                    else {
+                        //if this is a standalone then we need to store the state of 
+                        //the validation.
+                    }
+
                 } catch (error) {
                     this.showErrorMessage("An error was detected in Validation Dialog ", true);
                     this.resetButtonsWrkfl();
@@ -1221,7 +1260,7 @@ sap.ui.define([
 
         },
 
-        orchestrateStartAllSfcswrkf: async function (eOrder, tevt) {
+        signOffAllSfcsOrderOperation: async function (eOrder, tevt) {
             tevt.getSource().setBusy(true);
             if (!eOrder) {
                 this.showErrorMessage("An error was detected: " + error.message, true);
@@ -1244,7 +1283,7 @@ sap.ui.define([
             oLogger.info("signoff 450 sfcs");
             var partofthesfcs = thesfcs.slice(0, 100);
             var signedoff = await this.signOffSfcs(partofthesfcs);
-            partofthesfcs = thesfcs.slice(450, thesfcs.lenght);
+            partofthesfcs = thesfcs.slice(450, thesfcs.length);
             //oLogger.info("signoff sfcs from 450 to the end");
             //var therestof=await this.signOffSfcs(thesfcs);
             tevt.getSource().setBusy(false);
@@ -1351,7 +1390,7 @@ sap.ui.define([
         },
 
         /**
-         * 
+         * ComponentAPISucsess
          * @param {*} oResponseData ther Response from the 
          *                      "/assembly/v1/plannedComponents"
          * @returns componentModel --also sets the table model /components
@@ -1457,6 +1496,11 @@ sap.ui.define([
             var oTable = this.byId("Vcomp");
             var oInput = this.byId("componentInput");
             var sValue = oInput.getValue();
+            /** changes 03/20/2024 */
+            //Clear the input box 
+            oInput.setValue("");
+            /** end changes  03/20/2024 */
+            
             var aItems = oTable.getItems();
             var bFound = false;
 
@@ -1531,7 +1575,7 @@ sap.ui.define([
             var oTable = this.byId("Vcomp");
             var nRows = oTable.getItems();
             if (scannedOrEntered) {
-                for (var i = 0; i <= nRows.lenth; i++) {
+                for (var i = 0; i <= nRows.length; i++) {
 
                     var cellValue = nRows[i].getCells().getText();
                     if (cellValue === scannedOrEntered) {
@@ -1803,7 +1847,8 @@ sap.ui.define([
                 material: "",
                 startableSFCs: [],
                 activeSFCs: [],
-                components: []
+                components: [],
+                validatedComponents:[]
             };
 
             if (aOperations.length === 1) {
