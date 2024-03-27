@@ -26,3 +26,4 @@ docs/assets/.DS_Store
 docs/theme/.DS_Store
 **/mta_archives/*
 **/node_modules/*
+dm-podplugin-extensions/ViewPodPluginTemplate_And_Example/project/ViewPodPlugin/mta.yaml

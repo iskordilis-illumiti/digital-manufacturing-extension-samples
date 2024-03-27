@@ -12,7 +12,7 @@ modules:
         httpHeaders:
         - X-Frame-Options: deny
         CORS: "[{\"uriPattern\": \"^/podplugins/(.*)$\",\"allowedOrigin\": [
-               {\"host\": \"illumiti-dmc-1-vl2m06ky.test.execution.us10.dmc.cloud.sap\",\"protocol\": \"https\"},
+               {\"host\": \"lutron-dm-non-prod-cmw5er2j.test.execution.us20.dmc.cloud.sap\",\"protocol\": \"https\"},
                {\"host\": \"<DMC_HOST2>\",\"protocol\": \"https\"}],
                \"allowedMethods\": [\"GET\",\"OPTIONS\"],
                \"allowedHeaders\":[\"Origin\", \"Accept\",\"X-Requested-With\",\"Content-Type\",

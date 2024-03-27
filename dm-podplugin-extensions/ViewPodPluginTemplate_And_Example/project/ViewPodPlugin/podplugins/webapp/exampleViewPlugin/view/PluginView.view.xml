@@ -34,7 +34,7 @@
                             <Label id="workCenter" text="{/workCenter}" width="100%" />
                         </items>
                     </HBox>
-                    <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTER'}">
+                    <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTER'}"> 
                         <items>
                             <Label id="operationLabel" text="{i18n>operation}:" class="sapUiTinyMarginEnd"/>
                             <Label id="operation" text="{/operation}" width="100%" />
@@ -62,139 +62,15 @@
                             <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponentsEn" class="sapUiTinyMarginEnd"/>
                             <Button id="CompletComp" text="Complete Order" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onCompleteOrderSfcs" class="sapUiTinyMarginEnd"/>
                             <Button id="SignoffComp" text="Sign Off Components" visible="false"  press=".onSignOffComponents" class="sapUiTinyMarginEnd signoff-color"/>
-                            <Button id="TestFunction" text="function" visible="true"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="TestFunction" text="Debug" visible="true"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestFlow" text="Signoff" visible="true"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Label id="MessageAreaId" text="Message Area" class="sapUiTinyMarginEnd"/>
 
-
-
                         </items>
 
-                    </HBox>
-                    <!-- End The StartOrder Controls-->
-                    <!-- hide this table with visible that evaluates to false-->
-                    <!--
-                    <Table
-                        id="selectionsTable"
-                        backgroundDesign="Solid"
-                        inset="false"
-                        width="100%"
-                        mode="SingleSelectMaster"
-                         visible="{= ${/podType} === 'WORK_CENTERX'}"
-                        items="{
-                            path: '/selections'
-                        }">
-                        <columns>
-                            <Column hAlign="Begin">
-                                <Text text="Input"  wrapping="false"/>
-                            </Column>
-                            <Column hAlign="Begin">
-                                <Text text="SFC"  wrapping="false"/>
-                            </Column>
-                            <Column hAlign="Begin">
-                                <Text text="Material" />
-                            </Column>
-                            <Column hAlign="Begin">
-                                <Text text="Shop Order" />
-                            </Column>
-                        </columns>
-                        <items>
-                            <ColumnListItem>
-                                <cells>
-                                    <Text text="{input}"/>
-                                    <Text text="{sfc}"/>
-                                    <Text text="{material}"/>
-                                    <Text text="{shopOrder}"/>
-                                </cells>
-                            </ColumnListItem>
-                        </items>
-                    </Table>
-                    -->
-                    <!-- Hidden table-->
-                    <!--
-                    <HBox width="100%" visible="{= ${/podType} === 'WORK_CENTERX'}">
-                        <items>
-                            <Label id="operationCountLabel" text="Operations:" class="sapUiTinyMarginEnd"/>
-                            <Label id="operationCount" text="{/operationCount}" width="100%" />
-                        </items>
-                     
-                    </HBox>
-                    -->  
-                    <!-- hide this table too same teqnique -->
-                    <!--
-                    <Table
-                        id="operationsTable"
-                        backgroundDesign="Solid"
-                        inset="false"
-                        width="100%"
-                        mode="SingleSelectMaster"
-                        visible="{= ${/podType} === 'WORK_CENTERX'}"
-                        items="{
-                            path: '/operations'
-                        }">
-                        <columns>
-                            <Column hAlign="Begin">
-                                <Text text="operation"/>
-                            </Column>
-                            <Column hAlign="Begin">
-                                <Text text="Version"/>
-                            </Column>
-                        </columns>
-                        <items>
-                            <ColumnListItem>
-                                <cells>
-                                    <Text text="{operation}"/>
-                                    <Text text="{version}"/>
-                                </cells>
-                            </ColumnListItem>
-                        </items>
-                    </Table>
-                    -->
-
-                    <!-- hidden table -->
-                    <!--
-                    <HBox width="100%" visible="{= ${/podType} === 'XWORK_CENTER'}">
-                        <items>
-                            <Label id="customFieldsLabel" text="Custom Fields:" class="sapUiTinyMarginEnd"/>
-                        </items>
-                    </HBox>
-                     <Table
-                        id="customFieldsTable"
-                        backgroundDesign="Solid"
-                        inset="false"
-                        width="100%"
-                        visible="{= ${/podType} === 'XWORK_CENTER'}"
-                        items="{
-                            path: '/materialCustomFields'
-                        }">
-                        <columns>
-                            <Column hAlign="Begin">
-                                <Text text="Field"/>
-                            </Column>
-                            <Column hAlign="Begin">
-                                <Text text="Value"/>
-                            </Column>
-                        </columns>
-                        <items>
-                            <ColumnListItem>
-                                <cells>
-                                    <Text text="{attribute}"/>
-                                    <Text text="{value}"/>
-                                </cells>
-                            </ColumnListItem>
-                        </items>
-                    </Table>
-                    -->
-                    <!-- hide this VBox  too  <VBox width="100%" visible="{/notificationsEnabled}"> -->    
-                    <!--
-                    <VBox width="100%" visible="false">
-                        <items>
-                            <Label id="notificationLabel" text="Notification Message:" class="sapUiTinyMarginEnd"/>
-                            <TextArea id="notificationText" value="{/notificationMessage}" growing="true" width="100%"/>
-                        </items>
-                    </VBox>
-                    -->
+                    </HBox> 
                 </items>
             </VBox>
         </content>
     </Panel>
-</mvc:View>
+</mvc:View> 

@@ -60,7 +60,6 @@ sap.ui.define([
     const SFCS_INVALID = 408;
     const SFCS_DELETED = 409;
 
-
     //--------------------------------------------------------------------------
 
     var oPluginViewController = PluginViewController.extend("illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
@@ -70,10 +69,12 @@ sap.ui.define([
         },
 
         onInit: function () {
+            //marker4
             if (PluginViewController.prototype.onInit) {
                 PluginViewController.prototype.onInit.apply(this, arguments);
+             
             }
-        },
+        }, 
 
         /**
          * @see PluginViewController.onBeforeRenderingPlugin()
@@ -86,6 +87,15 @@ sap.ui.define([
             this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
             this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
             var oConfig = this.getConfiguration();
+           
+            var oValidationButton = this.getView().byId("ValidateCompType");
+            var oStartOrderButton = this.getView().byId("OrderStartType");
+            var oCompleteButton = this.getView().byId("CompletComp");
+            var oSignoffButton = this.getView().byId("");
+
+            oLogger.info("onInit config is:"+oConfig);
+
+
 
             // check if close icon should be displayed
             //Configured in the POD Designer 
@@ -104,11 +114,11 @@ sap.ui.define([
 
         onBeforeRendering: function () {
             this.loadModel();
-            //this.stateMachineLutronProcess(INIT_LP);
+        
         },
 
         onAfterRendering: function () {
-            console.log('after Rendering');
+          
         },
 
         onPodSelectionChangeEvent: function (sChannelId, sEventId, oData) {
@@ -137,8 +147,15 @@ sap.ui.define([
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             //get the data from the worklist selection row into wklstcurrentsel
             //get the operation into wrklstsopersel
+            if ((typeof oData === 'undefined')){
+                wrklstcurrentsel="";
+                wrklstsopersel="notset";
+
+            } else
+            {
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
+            }
             oLogger.info("onWorklistSelectEvent");
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
@@ -159,10 +176,7 @@ sap.ui.define([
             try {
                 var param = b ? b : "";
                 var param0 = m ? m : "info:";
-
                 oLogger.info(param0 + " : " + "  param:" + param);
-
-
             } catch (error) {
                 oLogger.info("Error which is (propably circular dependency ):");
             } finally {
@@ -178,6 +192,14 @@ sap.ui.define([
             this._debugGlb("wrklstpersel", wrklstcurrentsel);
         },
 
+        delay: function(ms){
+            return new Promise(resolve => setTimeout(resolve, ms));
+        },
+
+        bCheckUndefined: function( obj){
+            return (typeof obj === 'undefined');
+        },
+
         simpleStartSfcsPost: function (sOperation, sPlant, sResource, sSfcs ){
             //marker
             if (!this.bCheckSelectionModel()) {
@@ -188,7 +210,6 @@ sap.ui.define([
             var ButtonsSP= this.byId("TestFunction");
             //skip the quantity we want to start the full quantity.
             var ssfcParameters = {
- 
                 plant: sPlant,
                 operation: sOperation,
                 resource: sResource,
@@ -225,9 +246,10 @@ sap.ui.define([
             var sUrl = this.getPublicApiRestDataSourceUri() + "/tool/v1/prtLoadValidation";
             var sfcplant = this.getPodController().getUserPlant();
             var sfcOperation = this._getWorkListSelectedOperationGlb();
-            var sfcResource = this.getPodSelectionModel().getResource().getResource();
-
             var selection = this.getPodSelectionModel().getSelections();
+            
+            
+            var sfcResource = this.getView().getModel().getProperty("/resource");
             var thesfc = selection[0].getSfc().getSfc();
             var xpsfcs = [];
             xpsfcs.push(thesfc);
@@ -288,8 +310,8 @@ sap.ui.define([
             var oModel = oView.getModel();
             var oOrder = oModel.getProperty('/orderselect');
             //theOrder=this.getView().getModel().getProperty('/orderselect');
-            console.log(`order: ${oOrder}`);
-
+            //console.log(`order: ${oOrder}`);
+            
             var ssfcParameters = {
                 plant: sfcplant,
                 operation: sfcOperation,
@@ -403,22 +425,21 @@ sap.ui.define([
                     * var sUrl = that._oPluginController.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?plant=" + that._getUserPlant();
                     *sUrl = sUrl + "&workCenter=" + sWorkCenter;
                     *    sUrl = sUrl + "&allSfcSteps=true&page.size=20&page.offset=" + iPageOffset;
+                    * 
                     * "https://api./{regionHost}/sfc/v1/worklist/orders?page.size=20&allSfcSteps=false"
                     * "https://api./{regionHost}/sfc/v1/worklist/orders/$count?allSfcSteps=false")
                     * xhr.open("GET", "https://api.eu10.dmc.cloud.sap/sfc/v1/worklist/orders?page.size=20&filter.order=100122&allSfcSteps=false");
                     * 
                     */
-                    
-                    sUrl=sUrl + "plant="+thePlant;
+                    sUrl=sUrl + "page.size=20";
+                    sUrl=sUrl +"20&page.offset="+ 0;
+                    sUrl=sUrl + "&plant="+thePlant;
                     sUrl=sUrl +"&operation="+theOperation;
                     sUrl=sUrl +"&resource="+sfcResource;
-                    sUrl=sUrl + "&filter.order="+oOrder;
-                    // var params = {
-                    //     plant: thePlant,
-                    //     operation:thisfilter.operation,
-                    //     resource:sfcResource,
-                    //     filter:{order:["1001844"]}
-                    // };
+                    //sUrl=sUrl + "&filter.order="+oOrder;
+                    //sUrl =sUrl + "&filter.operation="+theOperation;
+                    sUrl=sUrl + "&allSfcSteps=true";
+                   
                     //this.ajaxGetRequest(sUrl, params, function (oResponseData)
                     this.ajaxGetRequest(sUrl, null, function (oResponseData) {
                         resolve(oResponseData);
@@ -432,7 +453,57 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
 
             }
+            /**
+             * getSfcsInWork
+             */
         },
+        getSfcsInWork: async function(){
+            
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcsInWork?page.size=100";
+
+                    var selection = this.getPodSelectionModel().getSelections();
+                    var thesfc = selection[0].getSfc().getSfc();
+                    var thePlant = this.getPodController().getUserPlant();
+                    var theOperation = this._getWorkListSelectedOperationGlb();
+                    var sfcResource = this.getPodSelectionModel().getResource().getResource();
+                    var oView = this.getView();
+            var oModel = oView.getModel();
+            var oOrder = oModel.getProperty('/orderselect');
+
+                   /**
+                    * SAMPLES TODO Delete
+                    * var sUrl = that._oPluginController.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?plant=" + that._getUserPlant();
+                    *sUrl = sUrl + "&workCenter=" + sWorkCenter;
+                    *    sUrl = sUrl + "&allSfcSteps=true&page.size=20&page.offset=" + iPageOffset;
+                    * 
+                    * "https://api./{regionHost}/sfc/v1/worklist/orders?page.size=20&allSfcSteps=false"
+                    * "https://api./{regionHost}/sfc/v1/worklist/orders/$count?allSfcSteps=false")
+                    * xhr.open("GET", "https://api.eu10.dmc.cloud.sap/sfc/v1/worklist/orders?page.size=20&filter.order=100122&allSfcSteps=false");
+                    * 
+                    */
+                    
+                   
+                    sUrl=sUrl + "&plant="+thePlant;   
+                    sUrl=sUrl +"&resource="+sfcResource;
+                    //sUrl=sUrl + "&filter.order="+oOrder;
+                  
+                    //this.ajaxGetRequest(sUrl, params, function (oResponseData)
+                    this.ajaxGetRequest(sUrl, null, function (oResponseData) {
+                        resolve(oResponseData);
+                    }, function (Error) {
+                        reject(Error);
+                    });
+                });
+                return oResponseData;
+            } catch (error) {
+                this.showErrorMessage("getsfcsInWork failed", true);
+                this.resetButtonsWrkfl();
+            }
+
+        },
+
 
         /** getComponentsForSfc
         * 
@@ -488,6 +559,12 @@ sap.ui.define([
             }
         },
 
+        /**
+         * getSfcStatus
+         * @param {*} thesfc 
+         * @returns 
+         */
+
         getSfcStatus: async function (thesfc) {
             var theplant = this.getPodController().getUserPlant();
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcdetail";
@@ -522,6 +599,7 @@ sap.ui.define([
         getSfcStatusIsStartable: async function (thesfc) {
 
             try {
+                //this will get startable sfcs from other operations as well
 
                 var oResponseData = await this.getSfcStatus(thesfc);
                 var code = oResponseData.status.code;
@@ -544,6 +622,7 @@ sap.ui.define([
             }
         },
         // ------------------ End getSfcStatusIsStartable --------
+
         //--
         //---------------------- classificationRead -----------------
         classificationRead: async function (imaterial) {
@@ -645,9 +724,9 @@ sap.ui.define([
         // It starts all sfcs in the passed array at Plant ,Operation , 
         //quantity and Resource
         // It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402))
-        // It returns a Promise with all the started sfcs if succesfull
+        // It returns started sfcs if succesfull
 
-        startAllSfcs: async function ( sOperation, sPlant, sResource,sQuantity, sSfcs) {
+        startAllSfcs: async function ( sOperation, sPlant, sResource, sSfcs) {
         
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
             //var sfcplant = this.getPodController().getUserPlant();
@@ -656,13 +735,10 @@ sap.ui.define([
             
         //TODO find the quantity
             var ssfcParameters = {
- 
-                plant: sPlant,
                 operation: sOperation,
-                quantity:1,
+                plant: sPlant,
                 resource: sResource,
-                sfcs: sSfcs,
-                 
+                sfcs: sSfcs     
             };
             var that = this;
             
@@ -675,9 +751,10 @@ sap.ui.define([
                             resolve(oResponseData);
                         },
                         function (oError, sHttpErrorMessage) {
-                        
-                            oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
-                            that.showErrorMessage(sHttpErrorMessage, true);
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - sfc start sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in Start : "+oError.error.message);                          
                             reject(oError);
                         });
                 });
@@ -729,6 +806,11 @@ sap.ui.define([
             }
 
         },
+        /**
+         * getAllSfcsInOrder
+         * @param {*} porder 
+         * @returns 
+         */
 
         getAllSfcsInOrder: async function (porder) {
             var ePlant = this.getPodController().getUserPlant();
@@ -827,6 +909,7 @@ sap.ui.define([
             return oResponseData;
 
         },
+
         /**vetComponentsToValidate
          * 
          */
@@ -859,95 +942,141 @@ sap.ui.define([
             var bVetting = await this.classificationRead(component);
 
             var cclasees = bVetting.classificationClasses; //an array of objects
+            
+
             if (cclasees.length == 0) {
                 //if there are no classification 
                 // validate the component
                 return true;
             }
+           
 
             var characteristicDetails = cclasees[0].characteristicDetails;
             var cclassesLength = characteristicDetails.length;
-            //Assume bValidate true
-            var bValidate = true;
+
+            var oStatus={
+                bFoundYes:false,
+                bFoundPartsExclusion:false,
+                bFoundResourceExclusion:false,
+                bMVisYes: function(){ return this.bFoundYes === true;},
+                bMVPisTrue: function() {return this.bFoundPartsExclusion === true;},
+                bMVRisTrue: function() { return this.bFoundResourceExclusion === true;}
+            };
+            
+            
             var plants = [];
-            var resource = "NONE";
-            var mvis="NONE";
-            var bmvpinluded=false;
-            var bmvrmatch=false;
+            // go through all the characteristics for the component
 
             for (var i = 0; i < cclassesLength; i++) {
-                //oLogger.info(JSON.stringify(characteristicDetails[i]));
+              
                 var zname = characteristicDetails[i].name;
+           
 
                 if (zname === "Z_MATERIALVALIDATION") {
+                    //TODO
+                    //put some sanity checks in here to verify the properties exist.
+                    var zId = characteristicDetails[i].charcInternalId;
+                    var classInternalId = zId;
+                    var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                    var arrassignmentCharacteristicValues = arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
+
+                    var index = arrassignmentCharacteristicValues.findIndex(function (item) {
+                        return item.charcInternalId === classInternalId;
+                    });
+
+                    //we have the index into assignmentCharacteristicValues where the YES or NO values is 
+                    var bYes = arrassignmentCharacteristicValues[index].charcValue === "YES" ? true : false;
+                    //do we really need to verify that is NO ? what else can it be ?
+                    if (!bYes) {
+                        oStatus.bFoundYes=false;
+                        return false;
+                    } else {
+                        // go to next iteration if any
+                        oStatus.bFoundYes = true;
+                        continue;
+                    }
                     
-                    let position = characteristicDetails[i].positionNumber;
-                    let status = characteristicDetails[i].status;
-                    // if we have yes
-                    if (position == 0 && status === "1") {
-                        bValidate = true;
-                        mvis="YES";
-                    }
-                    else {
-                        //assume NO
-                        bValidate = false;
-                        //return immediately
-                        return bValidate;
-                    }
-                }
+
+
+
+                      
+                     
+                } //Z_MATERIAL_VALIDATION Check
                 // work with the other cases
                 if (zname === "Z_MATERIALVALIDATION_PLANT") {
-                    let allowedvaluelist = characteristicDetails[i].allowedValueList; // it should be an array
-                    let allowedvaluelistlength = allowedvaluelist.length;
-                    if (allowedvaluelistlength) {
-                        for (let z = 0; z < allowedvaluelistlength; z++) {
-                            let zplant = allowedvaluelist[z].value;
-                            plants.push(zplant);
-                        }
-                        //if the current plant included in the plants in the
-                        // Z_MATERIALVALIDATION_PLANT then validation of the component
-                        // is excluded
-                        var currentPlant = this.getPodController().getUserPlant();
-                        //the plant is included in the plants in Z_MATERIALVALIDATION_PLANT
-                        if (plants.includes(currentPlant)) {
-                            bmvpinluded=true;
+                    //TODO for debug , remove after verification
+                    var cDetails = characteristicDetails[i];
+
+                    var zId=characteristicDetails[i].charcInternalId;
+                    var classInternalId= zId;
+                    var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                    var arrassignmentCharacteristicValues=arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
                     
+                    var index = arrassignmentCharacteristicValues.findIndex(function(item) {
+                        return item.charcInternalId ===  classInternalId;
+                    });
+                    if (index !==-1){
+                        var plants = arrassignmentCharacteristicValues[index].charcValue;
+                        
+                        var sCurrentPlant =  this.getPodController().getUserPlant();
+                        if (plants.includes(sCurrentPlant)){
+                            //TODO do we want to exit now ?, maybe the MATERIAL Validation has not happened yet
+                            // maybe does not matter because if allow to continue if MV was no anyway and if is YES then is ok too.
+                            oStatus.bFoundPartsExclusion=true;
+                            return false;
+                        } else {
+                            oStatus.bFoundPartsExclusion=false;
+                            continue;
                         }
-                    }
-                }
-                // bValidate is still true so this is the last check.
-                if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
-                    let zresource = characteristicDetails[i].characteristicDecription;
-                    if (zresource){
-                        resource = zresource;
+                    } else {
+                        oStatus.bFoundPartsExclusion=false;
+                        continue;
                     }
 
-                    // requires current selection model
+                } //Z_MATERIALVALIDATION_PLANT
+                
+                if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
+
                     var currentResource = this.getPodSelectionModel().getResource().getResource();
-                  
-                    if (resource === "NONE") {
-                        bmvrmatch=false;
-                        //the resource matches the resource in the Z_MATERIALVALIDATION_RESOURCE  
-                    } else {
-                        if (resource === currentResource) {
-                            bmvrmatch=true;
+                    //In case that the properties are not available wrap in a try catch loop
+                    try {
+                        var zId = characteristicDetails[i].charcInternalId;
+                        var classInternalId = zId;
+                        var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                        var arrassignmentCharacteristicValues = arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
+                        var index = arrassignmentCharacteristicValues.findIndex(function (item) {
+                            return item.charcInternalId === classInternalId;
+                        });
+
+                        //we have the index into assignmentCharacteristicValues where the resource to match is
+                        if (arrassignmentCharacteristicValues[index].charcValue.includes( currentResource)) {
+                            oStatus.bFoundResourceExclusion = true;
+
+                        } else {
+                            oStatus.bFoundResourceExclusion = false;
+
                         }
+                    } catch (error) {
+                        oStatus.bFoundResourceExclusion=false;
                     }
-                }
-            }
+
+                } //Z_MATERIALVALIDATION_RESOURCE
+            } //for
             //At this point we can say that MATERIAL_VALIDATION is YES because if NO
             // we have returned with false earlier in the loop 
             //if our planr included in the list of plants exclude the component
-             if (bmvpinluded){
+            var bOfy=oStatus.bFoundYes;
+            var boPtrue=oStatus.bFoundPartsExclusion;
+            var boRtrue=oStatus.bFoundResourceExclusion;
+
+            if (oStatus.bFoundYes && oStatus.bFoundPartsExclusion){
                 return false;
-             }
-             //if our resource matches the resource in the characterisitics exclude the component
-             if (bmvrmatch){
+            }
+            if (oStatus.bFoundYes && (!oStatus.bFoundPartsExclusion) && oStatus.bFoundResourceExclusion){
                 return false;
-             }
-             //the MATERIAL_VALIDATION stayed YES so include the component in validation.
-             return true;
-            
+            }
+            //the MATERIAL_VALIDATION is still Yes and No exlusions.
+            return true;   
         },
 
 
@@ -955,6 +1084,12 @@ sap.ui.define([
          * 
          *              END DM APIs
          * marker2
+         */
+
+        /**
+         * signOffAllSfcsOrderOperation
+         * @param {*} evt 
+         * @returns 
          */
         onsignOffAllSfcsOrderOperation: function (evt) {
             if (!this.bCheckSelectionModel()) {
@@ -964,12 +1099,14 @@ sap.ui.define([
             try {
                 //this.showSuccessMessage("onTestWorkFlow clickd!");
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
-                this.signOffAllSfcsOrderOperation(eOrder, evt);
+                var res=this.signOffAllSfcsOrderOperation(eOrder, evt);
 
             } catch (error) {
-                this.showErrorMessage("An error was detected: onsignoffAllSfcsOrderOperation ", true);
+                this.showErrorMessage("An error was detected: onsignoffAllSfcsOrderOperation:", true);
                 this.resetButtonsWrkfl();
             }
+            this.resetButtonsWrkfl();
+
         },
 
         orchestrateComponentVetting: async function (eOrder, tevt) {
@@ -998,11 +1135,12 @@ sap.ui.define([
                 return;
             }
             try {
-                var eOrder = this.getView().byId("OrderValueLabel").getText();
+               // var eOrder = this.getView().byId("OrderValueLabel").getText();
+               var eOrder = this.getView().getModel().getProperty("/orderselect");
                 var res= await this.StartOrderEnhanced(eOrder, evt);
             } catch (error) {
-                var msg=(!error)?"onStartOrderEnhanced":error;
-                this.showErrorMessage("An Error has occured: " +msg);
+                var msg=(!error)?"onStartOrderEnhanced":error.message;
+                this.showErrorMessage("An Error was detected: " +msg);
                 this.resetButtonsWrkfl();
             }
         },
@@ -1023,23 +1161,25 @@ sap.ui.define([
             var oCompleteButton = this.getView().byId("CompletComp");
             //var sfcUrl =this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
             var sfcplant = this.getPodController().getUserPlant();
-            var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloabal ch..ch..
-            var sfcResource = this.getPodSelectionModel().getResource().getResource();
+            var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloal ch..ch..
+            var sfcResource = this.getView().getModel().getProperty("/resource");
+            //var sfcResource = this.getPodSelectionModel().getResource().getResource();
             var oconfig = this.getConfiguration();
             console.log(oconfig);
 
             /********************* Check PRT ****************************/
             var prtval = await this.prtLoadingValidation();
             //make sure that prtval is valid and accomodate a prt api failure
-
+              // check for undefined
             if (!prtval || prtval.validationResult !== "PRT_PASSED") {
                 this.showErrorMessage("Tool validation failed , StartOrder will not continue");
                 return;
             }
 
             oLogger.info("retuls of prtLoadingValidation is: " + prtval.validationResult);
+             /********************* End Check PRT*** *********************/
             oStartOrderButton.setBusy(true);
-            /********************* End Check PRT*** *********************/
+           
 
             //Get all the sfcs in the order
             try {
@@ -1077,34 +1217,37 @@ sap.ui.define([
             }
             //bypass this loop if VALIDATE or COMPLETE
             /**go through a loop with step SFCS_CHUNK to start all sfcs */
-
+            oStartOrderButton.setBusy(true);
             for (let i = 0; i < vlength; i += SFCS_CHUNK) {
-                oStartOrderButton.setBusy(true);
+                
+                
                 let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);
-                        var chunckStartd = this.simpleStartSfcsPost( sfcOperation,sfcplant,sfcResource,startSFCChunk);
+                        //var chunckStartd = this.simpleStartSfcsPost( sfcOperation,sfcplant,sfcResource,startSFCChunk);
                 
                 /** API Call to start all SFCS************** *********/
 
-                    // var chunckStartd = await this.startAllSfcs(
-                    //     sfcOperation,
-                    //     sfcplant,
-                    //     sfcResource,
-                    //     1,
-                    //     startSFCChunk
-                    // );
+                 var chunckStartd = await this.startAllSfcs(
+                     sfcOperation,
+                    sfcplant,
+                    sfcResource,
+                    startSFCChunk
+                    );
+                   
                     var isfail = (typeof chunckStartd ==='undefined')? true: false;
                     
                     this.showErrorMessage((typeof chunckStartd === 'undefined'),true);
                     if (isfail){
                         oStartOrderButton.setBusy(false);
                     }
+                     //delay for 1s give the gateway chance to cope
+                     var waitfor= await this.delay(1000);
             }
             /****************** End of  LOOP to startall sfcs ***********/
             oStartOrderButton.setBusy(false);
 
-            //if (oconfig.executeStartOrderOnlyVisible) {
-             //   return;
-            //} //end for 
+            if (oconfig.executeStartOrderOnlyVisible) {
+                return;
+            } 
             //************* Validation starts here ********************
 
             oValidationButton.setBusy(true);
@@ -1119,6 +1262,14 @@ sap.ui.define([
             var tranformedComponents = this.transformComponentData(theComponents);
             //vet the components against the classificaton entry
             var vetted = await this.vetComponentsToValidate(tranformedComponents);
+
+            if((typeof vetted==='undefined')){
+                //This is wrong masking the problem but is only for debug purposes.
+                // also it might not be a problem and all components 
+                // were excluded in the Vetting with Classification filters.
+                vetted="";
+                this.showErrorMessage("There are not components to Validate",true);
+            }
             oLogger.info(" vetted= " + vetted);
 
             //now create a table Model only with the vetted components
@@ -1145,6 +1296,9 @@ sap.ui.define([
 
                 }
             } // if (vetted)
+            else {
+                this.resetButtonsWrkfl();
+            }
             oCompleteButton.setBusy(true);
             //****** Validation  ends here ******************************
 
@@ -1155,6 +1309,8 @@ sap.ui.define([
                 try {
                     let startSFCChunk = sfcstocomplete.slice(i, i + SFCS_CHUNK);
                     var bcompleted = await this.completeOrderSfcs(startSFCChunk);
+                    //TODO check bcompleted for validity or undefined
+
                     oLogger.info("value of complete promise return:" + bcompleted);
                 } catch (error) {
                     this.showErrorMessage("Error in completeOrderSfcs:", true);
@@ -1166,14 +1322,22 @@ sap.ui.define([
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
             // ****************** Complete ends here ********************
-        },
+        }, //*************** stertOrderEn ends here *********************
+
+        /**
+         * onValidateComponentsEn
+         */
+
         onValidateComponentsEn : async function(){
             var valres= await this.validateComponentsEnhanced();
+            if ((typeof valres=== 'undefined')){
+                valres="undefined - no components to validate";
+            }
+
             oLogger.info ( "value of validateComponentEn= "+ valres);      
+            this.resetButtonsWrkfl();
 
         },
-
-
 
 
         /**
@@ -1204,7 +1368,7 @@ sap.ui.define([
 
             // tranform theComponents into single row array with just the component
             var tranformedComponents = this.transformComponentData(theComponents);
-            //vet the components against the classificaton entry
+            //vet the components against the classificaton entry  Marker3
             var vetted = await this.vetComponentsToValidate(tranformedComponents);
             oLogger.info(" vetted= " + vetted);
 
@@ -1212,6 +1376,11 @@ sap.ui.define([
             // and put it into the View Model
             // in case is the vetted array is empty it means to bypass
             // the validation
+            if((typeof vetted==='undefined')){
+                //This is wrong masking the problem but is only for debug purposes.
+                vetted="";
+                this.showErrorMessage("There are no components to Validate",true);
+            }
             if (vetted.length !== 0) {
                 var componetsModel = this.ComponentAPISucsess(theComponents, vetted);
 
@@ -1224,6 +1393,7 @@ sap.ui.define([
                         oValidationButton.setBusy(false);
                         oCompleteButton.setBusy(false);
                         oStartOrderButton.setBusy(false);
+                        this.showErrorMessage("Validation has failed",true);
 
                         return;
                     }
@@ -1241,8 +1411,11 @@ sap.ui.define([
         },
 
         onTestFunction:async function (evt) {
-
+          //this.showErrorMessage("ready?");
             var thelist=await this.getWorklistDataSelectedOrder();
+            var thesfcs=await this.getSfcsInWork();
+            oLogger.info(thesfcs);
+
             if (0) {
                 //this.showSuccessMessage("OnTestButton ");
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
@@ -1261,31 +1434,44 @@ sap.ui.define([
         },
 
         signOffAllSfcsOrderOperation: async function (eOrder, tevt) {
-            tevt.getSource().setBusy(true);
+            //marker5
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("No selection");
+                return;
+            }
             if (!eOrder) {
                 this.showErrorMessage("An error was detected: " + error.message, true);
                 return;
             }
+            tevt.getSource().setBusy(true);
+            //TODO do we need to call getAllSfcsInOrder all the time?
+            // see if we can get it from the model 
+            // even more see if we can get all started sfcs
             var allSfcs = await this.getAllSfcsInOrder(eOrder);
             oLogger.info("sfcs found in Order  " + allSfcs.length);
 
             //TODO split sfcs array into multiple arrays of given size if 
             // if the sfcs in the array are >500
-            var sfcstostart = await this.filterStartableSFCs(allSfcs);
-            oLogger.info("startablesfcs size  " + sfcstostart.length);
+            //var sfcstostart = await this.filterStartableSFCs(allSfcs);
+            //oLogger.info("startablesfcs size  " + sfcstostart.length);
 
             //temporarilly do signoff so we can test 
             //filter from the list only the active sfcs
             var thesfcs = await this.filterActiveSFCS(allSfcs);
-            oLogger.info("active sfcs found  " + thesfcs.length);
-
-            //It does not work because the list contain SFC with status DONE
-            oLogger.info("signoff 450 sfcs");
-            var partofthesfcs = thesfcs.slice(0, 100);
-            var signedoff = await this.signOffSfcs(partofthesfcs);
-            partofthesfcs = thesfcs.slice(450, thesfcs.length);
-            //oLogger.info("signoff sfcs from 450 to the end");
-            //var therestof=await this.signOffSfcs(thesfcs);
+           
+            if ((typeof thesfcs==='undefined') || thesfcs.length ===0 ){
+                this.showErrorMessage ("No Sfcs to signoff ",true);
+                tevt.getSource().setBusy(false);
+            }
+            oLogger.info("active sfcs found  " + thesfcs.length);          
+            
+            for (let i= 0; i< thesfcs.length; i+=SFCS_CHUNK) {
+                
+                var partofthesfcs = thesfcs.slice(i, i+SFCS_CHUNK);
+                var signedoff = await this.signOffSfcs(partofthesfcs);
+                var waitfor= await this.delay(1000);
+            }
+                
             tevt.getSource().setBusy(false);
             
         },
@@ -1369,6 +1555,7 @@ sap.ui.define([
         },
 
         //---------------- End getStartable SFCs -------------------------
+        
         /**
          * 
          * transformComponentData: function (oResponseData) 
@@ -1483,9 +1670,11 @@ sap.ui.define([
             var oValidationButton = this.getView().byId("ValidateCompType");
             var oStartOrderButton = this.getView().byId("OrderStartType");
             var oCompleteButton = this.getView().byId("CompletComp");
+            //var oLabelStatus= this.getView().byId("StatusFlowType");
             oCompleteButton.setBusy(false);
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
+            //oLabelStatus.setText("Process status ..idle");
 
 
 
@@ -1755,8 +1944,8 @@ sap.ui.define([
             var sPodType = oPodSelectionModel.getPodType();
             var sResource;
             //get the Resource in sResource
-            var oResourceData = oPodSelectionModel.getResource();
-            if (oResourceData) {
+            var oResourceData = oPodSelectionModel.getResource(); 
+            if (oResourceData) { 
                 sResource = oResourceData.getResource();
             }
             var iSelectionCount = 0;
@@ -1827,6 +2016,7 @@ sap.ui.define([
             if (oOperation === "notset") {
                 oOperation = "";
             }
+            var oPstatus="  Process status ..idle";
 
             var oModelData = {
                 podType: sPodType,
@@ -1843,6 +2033,7 @@ sap.ui.define([
                 notificationMessage: "",
                 //Not needed for lutron but i leave it in.
                 materialCustomFields: aMaterialCustomFields,
+                pstatus: oPstatus,
                 wrklstrow: wrklstcurrentsel,
                 material: "",
                 startableSFCs: [],
@@ -1869,6 +2060,7 @@ sap.ui.define([
         },
 
         /*--------------------------------------------------------
+
          * This enables receiving Notification messages in the plugin
          * @override
          */
