@@ -1,11 +1,11 @@
 // Start all sfc's in an Order , validate components, complete all Sfcs : customer-> Lutron
 sap.ui.define([
     "sap/ui/model/json/JSONModel",
-    "sap/ui/core/Fragment",
-    "sap/dm/dme/podfoundation/controller/PluginViewController",
-    "sap/base/Log"
-], function (JSONModel, Fragment, PluginViewController, Log) {
-    "use strict";
+    "sap/ui/core/Fragment", 
+    "sap/dm/dme/podfoundation/controller/PluginViewController", 
+    "sap/base/Log" 
+], function (JSONModel, Fragment, PluginViewController, Log) { 
+    "use strict"; 
     //TODO Break this into multiple modules with well defined dependencies
     // Then import into this main module for the plugin
 
@@ -63,30 +63,29 @@ sap.ui.define([
     //--------------------------------------------------------------------------
 
     var oPluginViewController = PluginViewController.extend("illumiti.ext.viewplugins.exampleViewPlugin.controller.PluginView", {
-        metadata: {
-            properties: {
+        metadata: { 
+            properties: { 
             }
         },
 
         onInit: function () {
             //marker4
-            if (PluginViewController.prototype.onInit) {
-                PluginViewController.prototype.onInit.apply(this, arguments);
-             
-            }
-        }, 
+            if (PluginViewController.prototype.onInit) { 
+                PluginViewController.prototype.onInit.apply(this, arguments);     
+            } 
+        },  
 
-        /**
-         * @see PluginViewController.onBeforeRenderingPlugin()
-         */
-        onBeforeRenderingPlugin: function () {
-            // subscribe on POD events
+        /** 
+         * @see PluginViewController.onBeforeRenderingPlugin() 
+         */ 
+        onBeforeRenderingPlugin: function () { 
+            // subscribe on POD events 
             //OnPodSelectionChangeEvent , onOperationChangeEvent, onWorkListChangeEvent add other events if needed
             //-----------------------------------
             this.subscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this);
             this.subscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
             this.subscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
-            var oConfig = this.getConfiguration();
+            var oConfig = this.getConfiguration(); 
            
             var oValidationButton = this.getView().byId("ValidateCompType");
             var oStartOrderButton = this.getView().byId("OrderStartType");
@@ -102,57 +101,62 @@ sap.ui.define([
             this.configureNavigationButtons(oConfig);
         },
 
-        onExit: function () {
-            if (PluginViewController.prototype.onExit) {
-                PluginViewController.prototype.onExit.apply(this, arguments);
-            }
-            // unsubscribe from POD events on exit
+        onExit: function () { 
+            if (PluginViewController.prototype.onExit) { 
+                PluginViewController.prototype.onExit.apply(this, arguments); 
+            } 
+            // unsubscribe from POD events on exit 
             this.unsubscribe("PodSelectionChangeEvent", this.onPodSelectionChangeEvent, this);
             this.unsubscribe("OperationListSelectEvent", this.onOperationChangeEvent, this);
             this.unsubscribe("WorklistSelectEvent", this.onWorkListSelectEvent, this);
         },
 
         onBeforeRendering: function () {
-            this.loadModel();
+            this.loadModel(); 
         
         },
 
-        onAfterRendering: function () {
+        onAfterRendering: function () { 
           
-        },
+        }, 
 
-        onPodSelectionChangeEvent: function (sChannelId, sEventId, oData) {
-            console.log("PodSelectionChangeEvent");
-            // don't process if same object firing event
-            if (this.isEventFiredByThisPlugin(oData)) {
-                return;
+        onPodSelectionChangeEvent: function (sChannelId, sEventId, oData) { 
+            console.log("PodSelectionChangeEvent"); 
+            // don't process if same object firing event 
+            if (this.isEventFiredByThisPlugin(oData)) { 
+                return; 
             }
-            this.loadModel();
+            this.loadModel(); 
         },
 
         onOperationChangeEvent: function (sChannelId, sEventId, oData) {
             console.log("OperationChange Event");
 
-            // don't process if same object firing event
-            if (this.isEventFiredByThisPlugin(oData)) {
-                return;
-            }
-            this.loadModel();
+            // don't process if same object firing event 
+            if (this.isEventFiredByThisPlugin(oData)) { 
+                return; 
+            } 
+            this.loadModel(); 
         },
 
-        // When Worklist selection event fires , get all the info needed by the plugin
-        //calling the this.loadModel() function
-        //We need to extract the operation from the oData
-
+        /**
+         * onWorkListSelectEvent
+         * When Worklist selection event fires , get all the info needed by the plugin
+         * alling the this.loadModel() function
+         * We need to extract the operation from the oData
+         * @param {*} sChannelId 
+         * @param {*} sEventId 
+         * @param {*} oData 
+         * @returns 
+         */
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             //get the data from the worklist selection row into wklstcurrentsel
             //get the operation into wrklstsopersel
             if ((typeof oData === 'undefined')){
                 wrklstcurrentsel="";
                 wrklstsopersel="notset";
-
-            } else
-            {
+            } 
+            else {
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
             }
@@ -192,13 +196,36 @@ sap.ui.define([
             this._debugGlb("wrklstpersel", wrklstcurrentsel);
         },
 
+        /**
+         * delay()
+         * 
+         * @param {*} ms  number of miliseconds to delay
+         * @returns 
+         */
         delay: function(ms){
             return new Promise(resolve => setTimeout(resolve, ms));
         },
 
+        /**
+         * bCheckUndefined
+         * check if an object is undefined
+         * 
+         * @param {} obj 
+         * @returns 
+         */
         bCheckUndefined: function( obj){
             return (typeof obj === 'undefined');
         },
+
+        /**
+         * simpleStartSfcsPost
+         * @param {
+         * } sOperation 
+         * @param {*} sPlant 
+         * @param {*} sResource 
+         * @param {*} sSfcs 
+         * @returns 
+         */
 
         simpleStartSfcsPost: function (sOperation, sPlant, sResource, sSfcs ){
             //marker
@@ -299,7 +326,11 @@ sap.ui.define([
             }
         },
 
-        //--------------------- SignOFSfcs -------------------------------
+        /**
+         * SignOFSfcs
+         * @param {*} psfcs 
+         * @returns 
+         */
         signOffSfcs: async function (psfcs) {
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/signoff?async=false";
             var sfcplant = this.getPodController().getUserPlant();
@@ -310,8 +341,7 @@ sap.ui.define([
             var oModel = oView.getModel();
             var oOrder = oModel.getProperty('/orderselect');
             //theOrder=this.getView().getModel().getProperty('/orderselect');
-            //console.log(`order: ${oOrder}`);
-            
+            //console.log(`order: ${oOrder}`);        
             var ssfcParameters = {
                 plant: sfcplant,
                 operation: sfcOperation,
@@ -351,6 +381,11 @@ sap.ui.define([
             }
         },
 
+        /**
+         * getWorklistDataSelectedOrderCount
+         * 
+         * @returns Count of worklist items
+         */
         getWorklistDataSelectedOrderCount : async function(){
             try {
                 var oResponseData = await new Promise((resolve, reject) => {
@@ -364,7 +399,6 @@ sap.ui.define([
                     var thisfilter={
                         operation:theOperation,
                         resource:sfcResource
-
 
                     };
                     var params = {
@@ -387,7 +421,6 @@ sap.ui.define([
             }
 
         },
-
 
         /**
          * getWorklistDataSelectedOrder
@@ -505,7 +538,8 @@ sap.ui.define([
         },
 
 
-        /** getComponentsForSfc
+        /** 
+         * getComponentsForSfc
         * 
         * @returns a promise that if resolved contains the components
         *  for the sfc in the selection Model and plant
@@ -587,14 +621,13 @@ sap.ui.define([
 
             }
         },
-        // --
-        //  SfcStatusIsStartable wraps the calls to sfc/detail API in a promise
-        // -- and makes it possible to use asyc - wait 
-        // 
-        // Returns a promise that has true if the passed sfc is startable
-        // false if it is not
-        // TODO factor out the API call /sfc/v1/sfcdetail on its own
-        // Then call this and do the status comparisons on the resolved API call.
+        /**
+         * SfcStatusIsStartable wraps the calls to sfc/detail API in a promise
+         * it possible to use asyc - wait 
+         * 
+         * @param {*} thesfc 
+         * @returns 
+         */
 
         getSfcStatusIsStartable: async function (thesfc) {
 
@@ -621,10 +654,13 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
         },
-        // ------------------ End getSfcStatusIsStartable --------
 
-        //--
-        //---------------------- classificationRead -----------------
+        /**
+         *  classificationRead
+         * @param {*} imaterial the material to read classification for.
+         * @returns 
+         */
+        
         classificationRead: async function (imaterial) {
             var sUrl = this.getPublicApiRestDataSourceUri() + "/classification/v1/read";
             var sfcplant = this.getPodController().getUserPlant();
@@ -670,10 +706,13 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
         },
-        //--------------------- End classificationRead ---------------
+       
 
-        //--
-        //------------------  completeOrderSfcs ------------------
+        /**
+         * completeOrderSfcs 
+         * @param {*} psfcs a list of sfcs to complete.
+         * @returns 
+         */
         completeOrderSfcs: async function (psfcs) {
             if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("Nothing selected to complete");
@@ -717,14 +756,19 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
         },
-        //-----------------------End CompleteOrderSfcs -------------------
-
-        //---
-        // --------------------- startAllSfcs-----------------------------
-        // It starts all sfcs in the passed array at Plant ,Operation , 
-        //quantity and Resource
-        // It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402))
-        // It returns started sfcs if succesfull
+       
+       /**
+        * 
+        * startAllSfcs
+        * It starts all sfcs in the passed array at Plant ,Operation ,
+        * quantity and Resource
+        * It will ***fail*** if the sfcs in the list are not startable(status.code == New(401) or Inqueque(402)
+        * @param {*} sOperation 
+        * @param {*} sPlant 
+        * @param {*} sResource 
+        * @param {*} sSfcs 
+        * @returns  started sfcs if succesfull
+        */
 
         startAllSfcs: async function ( sOperation, sPlant, sResource, sSfcs) {
         
@@ -762,12 +806,13 @@ sap.ui.define([
             
 
         },
-        // ----- End startAllSfcs async
 
-        /** TODO too narrow use of the API it will be better to get the full response in an Object 
-         * and use the object to get the SFCs and other properties included in the response
-         * 
-         */
+       /**
+        * getAllSfcsInOrderSameOperation (in progress)
+        * @param {*} porder 
+        * @param {*} poperation 
+        * @returns 
+        */
 
         getAllSfcsInOrderSameOperation: async function (porder, poperation) {
             var ePlant = this.getPodController().getUserPlant();
@@ -808,7 +853,7 @@ sap.ui.define([
         },
         /**
          * getAllSfcsInOrder
-         * @param {*} porder 
+         * @param {*} porder the order which to get all sfcs
          * @returns 
          */
 
@@ -910,10 +955,12 @@ sap.ui.define([
 
         },
 
-        /**vetComponentsToValidate
+        
+        /**
          * 
+         * @param {} componentstovet 
+         * @returns 
          */
-
         vetComponentsToValidate: async function (componentstovet) {
             var vettedComponents = [];
             var promises = componentstovet.map(item => {
@@ -1128,6 +1175,12 @@ sap.ui.define([
             this.onValidateComponent();
         },
 
+        /**
+         * onStartOrderEnhanced
+         * 
+         * @param {*} evt 
+         * @returns 
+         */
 
         onStartOrderEnhanced: async function (evt) {
             if (!this.bCheckSelectionModel()) {
@@ -1325,6 +1378,201 @@ sap.ui.define([
         }, //*************** stertOrderEn ends here *********************
 
         /**
+         * StartOrderAltEnhanced
+         */
+        StartOrderAltEnhanced: async function (eOrder, tevt) {
+
+            //make sure there is a selection in the Worklist
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("No Selection is found");
+                return;
+            }
+
+            if (!eOrder) {
+                this.showErrorMessage("Order Not selected");
+                return;
+            }
+            var oValidationButton = this.getView().byId("ValidateCompType");
+            var oStartOrderButton = this.getView().byId("OrderStartType");
+            var oCompleteButton = this.getView().byId("CompletComp");
+            //var sfcUrl =this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+            var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloal ch..ch..
+            var sfcResource = this.getView().getModel().getProperty("/resource");
+            //var sfcResource = this.getPodSelectionModel().getResource().getResource();
+            var oconfig = this.getConfiguration();
+            
+            /********************* Check PRT ****************************/
+            // var prtval = await this.prtLoadingValidation();
+            // //make sure that prtval is valid and accomodate a prt api failure
+            //   // check for undefined
+            // if (!prtval || prtval.validationResult !== "PRT_PASSED") {
+            //     this.showErrorMessage("Tool validation failed , StartOrder will not continue");
+            //     return;
+            // }
+
+            // oLogger.info("results of prtLoadingValidation is: " + prtval.validationResult);
+            //  /********************* End Check PRT*** *********************/
+
+            //TODO this is not the correct button change
+            oStartOrderButton.setBusy(true);
+            //Marker6
+            try {
+            var oWorkListData= await this.getWorklistDataSelectedOrder();
+            
+            } catch (error){
+                //Do something with the error.
+            }
+
+            
+
+            //Get all the sfcs in the order AltEnhanced
+            try {
+                var allSfcs = await this.getAllSfcsInOrder(eOrder);
+            } catch (error) {
+                this.showErrorMessage("failed to get Sfc's for the Order: " + eOrder, true, true);
+                this.resetButtonsWrkfl();
+            }
+            oLogger.info("sfcs found in Order  " + allSfcs.length);
+            
+            /**************************** Filter for only startable sfcs */
+            try {
+                var sfcstostart = await this.filterStartableSFCs(allSfcs);
+
+                // 
+            } catch (error) {
+                this.showErrorMessage("An error was detected: StartOrderEnhanced ", true);
+                this.resetButtonsWrkfl();
+            }
+            oLogger.info("startablesfcs size  " + sfcstostart.length);
+            var vlength = sfcstostart.length;
+            // if vlength === 0 the API call to start will be bypassed
+            //Start the loop going through all the chunck of sfcs
+            var sfcstocomplete = [];
+            var sfcstocompletelength = 0;
+            if (!vlength === 0) {
+                // Assume that the sfc's will be started
+                // so the completesfc will take the value of sfctostart
+                // which after the start will have status of ACTIVE
+                sfcstocomplete = sfcstostart;
+            } else {
+                //TODO this will fail if sfcs are have status on HOLD etc
+                sfcstocomplete = allSfcs;
+                sfcstocompletelength = allSfcs.length;
+            }
+            //bypass this loop if VALIDATE or COMPLETE
+            /**go through a loop with step SFCS_CHUNK to start all sfcs */
+            oStartOrderButton.setBusy(true);
+            for (let i = 0; i < vlength; i += SFCS_CHUNK) {
+                
+                
+                let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);
+                        //var chunckStartd = this.simpleStartSfcsPost( sfcOperation,sfcplant,sfcResource,startSFCChunk);
+                
+                /** API Call to start all SFCS************** *********/
+
+                 var chunckStartd = await this.startAllSfcs(
+                     sfcOperation,
+                    sfcplant,
+                    sfcResource,
+                    startSFCChunk
+                    );
+                   
+                    var isfail = (typeof chunckStartd ==='undefined')? true: false;
+                    
+                    this.showErrorMessage((typeof chunckStartd === 'undefined'),true);
+                    if (isfail){
+                        oStartOrderButton.setBusy(false);
+                    }
+                     //delay for 1s give the gateway chance to cope
+                     var waitfor= await this.delay(1000);
+            }
+            /****************** End of  LOOP to startall sfcs ***********/
+            oStartOrderButton.setBusy(false);
+
+            if (oconfig.executeStartOrderOnlyVisible) {
+                return;
+            } 
+            //************* Validation starts here ********************
+
+            oValidationButton.setBusy(true);
+            try {
+                var theComponents = await this.getComponentsForSfc();
+            } catch (error) {
+                this.showErrorMessage("An error was detected:getComponentsForSfc ", true);
+                this.resetButtonsWrkfl();
+            }
+
+            // tranform theComponents into single row array with just the component
+            var tranformedComponents = this.transformComponentData(theComponents);
+            //vet the components against the classificaton entry
+            var vetted = await this.vetComponentsToValidate(tranformedComponents);
+
+            if((typeof vetted==='undefined')){
+                //This is wrong masking the problem but is only for debug purposes.
+                // also it might not be a problem and all components 
+                // were excluded in the Vetting with Classification filters.
+                vetted="";
+                this.showErrorMessage("There are not components to Validate",true);
+            }
+            oLogger.info(" vetted= " + vetted);
+
+            //now create a table Model only with the vetted components
+            // and put it into the View Model
+            // in case is the vetted array is empty it means to bypass
+            // the validation
+            if (vetted.length !== 0) {
+                var componetsModel = this.ComponentAPISucsess(theComponents, vetted);
+
+                try {
+                    var theDialog = await this.openValidateDialog();
+                    console.log("theDialog=" + theDialog);
+                    oValidationButton.setBusy(false);
+                    if (theDialog !== COMPONENT_VALIDATION_SUCCESS) {
+                        //set a valid state first
+                        oValidationButton.setBusy(false);
+                        oCompleteButton.setBusy(false);
+                        oStartOrderButton.setBusy(false);
+                        return;
+                    }
+                } catch (error) {
+                    this.showErrorMessage("An error was detected: openValidateDialog() ", true);
+                    this.resetButtonsWrkfl();
+
+                }
+            } // if (vetted)
+            else {
+                this.resetButtonsWrkfl();
+            }
+            oCompleteButton.setBusy(true);
+            //****** Validation  ends here ******************************
+
+            //****** Complete starts here *******************************
+            //Now start the loop to complete all sfcs
+            for (let i = 0; i < sfcstocompletelength; i += SFCS_CHUNK) {
+
+                try {
+                    let startSFCChunk = sfcstocomplete.slice(i, i + SFCS_CHUNK);
+                    var bcompleted = await this.completeOrderSfcs(startSFCChunk);
+                    //TODO check bcompleted for validity or undefined
+
+                    oLogger.info("value of complete promise return:" + bcompleted);
+                } catch (error) {
+                    this.showErrorMessage("Error in completeOrderSfcs:", true);
+                }
+
+            } //enfor complete
+            // reset all buttons to setbusy false
+            oCompleteButton.setBusy(false);
+            oValidationButton.setBusy(false);
+            oStartOrderButton.setBusy(false);
+            // ****************** Complete ends here ********************
+        }, 
+
+
+
+
+        /**
          * onValidateComponentsEn
          */
 
@@ -1411,6 +1659,7 @@ sap.ui.define([
         },
 
         onTestFunction:async function (evt) {
+            var oAlt= await this.StartOrderAltEnhanced();
           //this.showErrorMessage("ready?");
             var thelist=await this.getWorklistDataSelectedOrder();
             var thesfcs=await this.getSfcsInWork();
@@ -1921,24 +2170,24 @@ sap.ui.define([
         // set this model as the view model
         //-------------------------------------------
 
-        loadModel: function () {
-            //get the view in oView
-            var oView = this.getView();
-            var oPodController = this.getPodController();
+        loadModel: function () {    
+            //get the view in oView 
+            var oView = this.getView(); 
+            var oPodController = this.getPodController();   
             //get configuration as set in the POD designer 
-            var oConfiguration = this.getConfiguration();
-            oLogger.info("config: " + JSON.stringify(oConfiguration));
-            var bNotificationsEnabled = true;
+            var oConfiguration = this.getConfiguration();   
+            oLogger.info("config: " + JSON.stringify(oConfiguration));  
+            var bNotificationsEnabled = true;   
             // if notification is enabled
-            if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") {
-                bNotificationsEnabled = oConfiguration.notificationsEnabled;
+            if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") { 
+                bNotificationsEnabled = oConfiguration.notificationsEnabled;    
             }
-            //get the podSelectionModel in oPodSelectionModel
-            var oPodSelectionModel = this.getPodSelectionModel();
-            if (!oPodSelectionModel) {
-                oView.setModel(new JSONModel());
-                this._debugGlb("INFO: loadModel - 1091 Model globbered no selectionModel");
-                return;
+            //get the podSelectionModel in oPodSelectionModel   
+            var oPodSelectionModel = this.getPodSelectionModel();   
+            if (!oPodSelectionModel) {  
+                oView.setModel(new JSONModel());    
+                this._debugGlb("INFO: loadModel - 1091 Model globbered no selectionModel"); 
+                return; 
             }
             //get the pod type in sPodType
             var sPodType = oPodSelectionModel.getPodType();
@@ -1946,70 +2195,70 @@ sap.ui.define([
             //get the Resource in sResource
             var oResourceData = oPodSelectionModel.getResource(); 
             if (oResourceData) { 
-                sResource = oResourceData.getResource();
+                sResource = oResourceData.getResource();    
             }
-            var iSelectionCount = 0;
-            var aInputs = [];
-            var sInput, sSfc, sMaterial, sShopOrder;
+            var iSelectionCount = 0;    
+            var aInputs = [];   
+            var sInput, sSfc, sMaterial, sShopOrder;    
             //get the selections in aSelections
             var aSelections = oPodSelectionModel.getSelections();
             if (aSelections && aSelections.length > 0) {
                 //loop through all the selections and extract info in sInput ,sSfc , sMaterial,sShopOrder
-                for (var i = 0; i < aSelections.length; i++) {
-                    sInput = aSelections[i].getInput();
-                    if (sInput && sInput !== "") {
-                        sSfc = "";
-                        if (aSelections[i].getSfc()) {
-                            sSfc = aSelections[i].getSfc().getSfc();
+                for (var i = 0; i < aSelections.length; i++) { 
+                    sInput = aSelections[i].getInput(); 
+                    if (sInput && sInput !== "") { 
+                        sSfc = ""; 
+                        if (aSelections[i].getSfc()) { 
+                            sSfc = aSelections[i].getSfc().getSfc(); 
+                        } 
+                        sMaterial = ""; 
+                        if (aSelections[i].getItem()) { 
+                            sMaterial = aSelections[i].getItem().getItem(); 
                         }
-                        sMaterial = "";
-                        if (aSelections[i].getItem()) {
-                            sMaterial = aSelections[i].getItem().getItem();
-                        }
-                        sShopOrder = "";
-                        if (aSelections[i].getShopOrder()) {
-                            sShopOrder = aSelections[i].getShopOrder().getShopOrder();
+                        sShopOrder = ""; 
+                        if (aSelections[i].getShopOrder()) { 
+                            sShopOrder = aSelections[i].getShopOrder().getShopOrder(); 
 
                             // Store shop order in selectedOrder will be used in Model and the View
                             //Only store the first order selected , ignore the others in multiselection
                             //Situation.
-                        }
+                        } 
 
-                        aInputs[aInputs.length] = {
-                            input: sInput,
+                        aInputs[aInputs.length] = { 
+                            input: sInput, 
                             sfc: sSfc,
-                            material: sMaterial,
-                            shopOrder: sShopOrder
-                        };
+                            material: sMaterial, 
+                            shopOrder: sShopOrder 
+                        }; 
                     }
                 }
-                iSelectionCount = aInputs.length;
+                iSelectionCount = aInputs.length; 
             }
 
 
-            var iOperationCount = 0;
-            var aOperations = [];
-            var aMaterialCustomFields = [];
+            var iOperationCount = 0; 
+            var aOperations = []; 
+            var aMaterialCustomFields = []; 
             var sOperation;
-            var oOperations = oPodSelectionModel.getOperations();
-            //get all the operation this will not get anything in the Worklist page
-            if (oOperations && oOperations.length > 0) {
-                for (var i = 0; i < oOperations.length; i++) {
-                    sOperation = oOperations[i].operation;
-                    if (sOperation) {
-                        aOperations[aOperations.length] = {
-                            operation: sOperation,
-                            version: oOperations[i].version
-                        };
+            var oOperations = oPodSelectionModel.getOperations(); 
+            //get all the operation this will not get anything in the Worklist page 
+            if (oOperations && oOperations.length > 0) { 
+                for (var i = 0; i < oOperations.length; i++) { 
+                    sOperation = oOperations[i].operation; 
+                    if (sOperation) { 
+                        aOperations[aOperations.length] = { 
+                            operation: sOperation, 
+                            version: oOperations[i].version 
+                        }; 
                     }
                 }
-                iOperationCount = aOperations.length;
-            } else {
+                iOperationCount = aOperations.length; 
+            } else { 
 
-            }
+            } 
             // Create the Model in oModelData
-            var oInputType = oPodSelectionModel.getInputType();
-            var oWorkCenter = oPodSelectionModel.getWorkCenter();
+            var oInputType = oPodSelectionModel.getInputType(); 
+            var oWorkCenter = oPodSelectionModel.getWorkCenter(); 
             //operation  somehow is not in the selection Model so we will 
             // Use the one that we stored from the WorklistChangeEvent
             var oOperation = this._getWorkListSelectedOperationGlb();
@@ -2018,13 +2267,13 @@ sap.ui.define([
             }
             var oPstatus="  Process status ..idle";
 
-            var oModelData = {
-                podType: sPodType,
-                inputType: oInputType,
-                workCenter: oWorkCenter,
-                operation: oOperation,
+            var oModelData = { 
+                podType: sPodType, 
+                inputType: oInputType, 
+                workCenter: oWorkCenter, 
+                operation: oOperation, 
                 resource: sResource,
-                selectionCount: iSelectionCount,
+                selectionCount: iSelectionCount, 
                 operationCount: iOperationCount,
                 selections: aInputs,
                 orderselect: sShopOrder,
@@ -2042,13 +2291,13 @@ sap.ui.define([
                 validatedComponents:[]
             };
 
-            if (aOperations.length === 1) {
-                oModelData.operation = aOperations[0].operation;
+            if (aOperations.length === 1) { 
+                oModelData.operation = aOperations[0].operation; 
             }
-            // add material custom fields to model
+            // add material custom fields to model 
             //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
 
-            var oModel = new JSONModel(oModelData);
+            var oModel = new JSONModel(oModelData); 
             //this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs), oModelData.operation);
 
             // Set the model for the View with the gathered info
@@ -2056,104 +2305,105 @@ sap.ui.define([
             // for the Lutron plugin
             oModelData.material = aInputs.length ? aInputs[0].material : "";
 
-            oView.setModel(oModel);
+            oView.setModel(oModel); 
         },
 
         /*--------------------------------------------------------
 
-         * This enables receiving Notification messages in the plugin
+         * This enables receiving Notification messages in the plugin 
          * @override
          */
-        isSubscribingToNotifications: function () {
-            var oConfiguration = this.getConfiguration();
+        isSubscribingToNotifications: function () { 
+            var oConfiguration = this.getConfiguration(); 
             var bNotificationsEnabled = true;
-            if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") {
-                bNotificationsEnabled = oConfiguration.notificationsEnabled;
+            if (oConfiguration && typeof oConfiguration.notificationsEnabled !== "undefined") { 
+                bNotificationsEnabled = oConfiguration.notificationsEnabled; 
             }
-            return bNotificationsEnabled;
-        },
-
+            return bNotificationsEnabled; 
+        }, 
+ 
         /*----------------------------
-         * Return the event name (i.e.;MEASUREMENT) being subscribed to by this plugin
-         * @override
+         * Return the event name (i.e.;MEASUREMENT) being subscribed to by this plugin 
+         * @override 
          */
-        getCustomNotificationEvents: function () {
-            return ["MEASUREMENT"];
+        getCustomNotificationEvents: function () { 
+            return ["MEASUREMENT"]; 
         },
 
         /*
-         * Return the function to be called when a MEASUREMENT notification message is received
-         * @override
+         * Return the function to be called when a MEASUREMENT notification message is received 
+         * @override 
          */
-        getNotificationMessageHandler: function (sTopic) {
-            if (sTopic === "MEASUREMENT") {
-                return this.handleNotificationMessage;
+        getNotificationMessageHandler: function (sTopic) { 
+            if (sTopic === "MEASUREMENT") { 
+                return this.handleNotificationMessage; 
             }
-            return null;
+            return null; 
         },
 
-        handleNotificationMessage: function (oMsg) {
-            //oLogger.info("handleNotificationMessage oMsg:" + oMsg);
-            var sMessage = "Message not found in payload 'message' property";
-            if (oMsg && oMsg.parameters && oMsg.parameters.length > 0) {
-                for (var i = 0; i < oMsg.parameters.length; i++) {
-                    if (oMsg.parameters[i].name === "message") {
-                        sMessage = oMsg.parameters[i].value;
-                        break;
+        handleNotificationMessage: function (oMsg) { 
+            //oLogger.info("handleNotificationMessage oMsg:" + oMsg); 
+            var sMessage = "Message not found in payload 'message' property"; 
+            if (oMsg && oMsg.parameters && oMsg.parameters.length > 0) { 
+                for (var i = 0; i < oMsg.parameters.length; i++) { 
+                    if (oMsg.parameters[i].name === "message") { 
+                        sMessage = oMsg.parameters[i].value; 
+                        break; 
                     }
                 }
             }
-            this.getView().getModel().setProperty("/notificationMessage", sMessage);
-        },
-        //TODO remove this API call for the Lutron Plugin
-        // Commented out in the caller
-        addMaterialCustomFields: function (sPlant, sMaterial) {
-            // Populate parameters with plant and material name 
-            var oParameters = {
+            this.getView().getModel().setProperty("/notificationMessage", sMessage); 
+        }, 
+        //TODO remove this API call for the Lutron Plugin 
+        // Commented out in the caller 
+        addMaterialCustomFields: function (sPlant, sMaterial) { 
+            // Populate parameters with plant and material name  
+            var oParameters = { 
                 plant: sPlant,
-                material: sMaterial
+                material: sMaterial 
             };
-            //TODO generalize this to be reusubale for the HTTP get (generize overall)
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/material/v1/materials";
-            // Ajax GET request to read Material custom fields by using Public API 
-            this.executeAjaxGetRequest(sUrl, oParameters);
+            //TODO generalize this to be reusubale for the HTTP get (generize overall) 
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/material/v1/materials"; 
+            // Ajax GET request to read Material custom fields by using Public API  
+            this.executeAjaxGetRequest(sUrl, oParameters); 
         },
 
-        executeAjaxGetRequest: function (sUrl, oParameters) {
+        executeAjaxGetRequest: function (sUrl, oParameters) { 
             var that = this;
-            this.ajaxGetRequest(sUrl, oParameters,
+            this.ajaxGetRequest(sUrl, oParameters, 
                 function (oResponseData) {
-                    that.handleResponse(oResponseData);
+                    that.handleResponse(oResponseData); 
                 },
-                function (oError, sHttpErrorMessage) {
-                    that.handleError(oError, sHttpErrorMessage);
-                }
+                function (oError, sHttpErrorMessage) { 
+                    that.handleError(oError, sHttpErrorMessage); 
+                } 
             );
         },
 
-        handleResponse: function (oResponseData) {
+        handleResponse: function (oResponseData) { 
             if (oResponseData && oResponseData.length > 0) {
                 // set customValues data to model property "materialCustomFields"     
-                this.getView().getModel().setProperty("/materialCustomFields", oResponseData[0].customValues);
-            }
+                this.getView().getModel().setProperty("/materialCustomFields", oResponseData[0].customValues); 
+            } 
         },
 
-        handleError: function (oError, sHttpErrorMessage) {
-            var err = oError || sHttpErrorMessage;
-            // show error in message toast   
-            this.showErrorMessage(err, true, true);
+        handleError: function (oError, sHttpErrorMessage) { 
+            var err = oError || sHttpErrorMessage; 
+            // show error in message toast    
+            this.showErrorMessage(err, true, true); 
         },
 
-        configureNavigationButtons: function (oConfiguration) {
+        configureNavigationButtons: function (oConfiguration) { 
 
-            if (!this.isPopup() && !this.isDefaultPlugin()) {
-                console.log("configureNavigationButtons in the if");
-                this.byId("closeButton").setVisible(oConfiguration.closeButtonVisible);
-                console.log("configureNavigationButtons outside the if");
+            if (!this.isPopup() && !this.isDefaultPlugin()) { 
+                console.log("configureNavigationButtons in the if"); 
+                this.byId("closeButton").setVisible(oConfiguration.closeButtonVisible); 
+                console.log("configureNavigationButtons outside the if"); 
             }
         }
     });
-    return oPluginViewController;
+    return oPluginViewController; 
+    
 });
 
 
