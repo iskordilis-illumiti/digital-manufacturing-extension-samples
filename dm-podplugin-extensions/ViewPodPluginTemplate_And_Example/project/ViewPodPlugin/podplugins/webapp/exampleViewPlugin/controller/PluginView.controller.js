@@ -152,15 +152,18 @@ sap.ui.define([
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             //get the data from the worklist selection row into wklstcurrentsel
             //get the operation into wrklstsopersel
-            if ((typeof oData === 'undefined')){
+            if ((typeof oData === 'undefined') || oData.selections.length === 0){
                 wrklstcurrentsel="";
                 wrklstsopersel="notset";
+                // TODO: clear the input text box.
+                // or the model will automatically clear it ?
+
             } 
             else {
             wrklstcurrentsel = oData;
             wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
             }
-            oLogger.info("onWorklistSelectEvent");
+            oLogger.info(`onWorklistSelectEvent  ${wrklstsopersel}`);
             // don't process if same object firing event
             if (this.isEventFiredByThisPlugin(oData)) {
                 return;
@@ -311,6 +314,7 @@ sap.ui.define([
                 return oResponseData;
             
         },
+
         /**
          *  bCheckSelectionModel
          * @returns true or false depending if we have 
@@ -454,7 +458,7 @@ sap.ui.define([
             var oOrder = oModel.getProperty('/orderselect');
 
                    /**
-                    * SAMPLES TODO Delete
+                    * SAMPLES 
                     * var sUrl = that._oPluginController.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?plant=" + that._getUserPlant();
                     *sUrl = sUrl + "&workCenter=" + sWorkCenter;
                     *    sUrl = sUrl + "&allSfcSteps=true&page.size=20&page.offset=" + iPageOffset;
@@ -469,7 +473,7 @@ sap.ui.define([
                     sUrl=sUrl + "&plant="+thePlant;
                     sUrl=sUrl +"&operation="+theOperation;
                     sUrl=sUrl +"&resource="+sfcResource;
-                    //sUrl=sUrl + "&filter.order="+oOrder;
+                    sUrl=sUrl + "&filter.order="+oOrder;
                     //sUrl =sUrl + "&filter.operation="+theOperation;
                     sUrl=sUrl + "&allSfcSteps=true";
                    
@@ -506,7 +510,7 @@ sap.ui.define([
             var oOrder = oModel.getProperty('/orderselect');
 
                    /**
-                    * SAMPLES TODO Delete
+                    * SAMPLES 
                     * var sUrl = that._oPluginController.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?plant=" + that._getUserPlant();
                     *sUrl = sUrl + "&workCenter=" + sWorkCenter;
                     *    sUrl = sUrl + "&allSfcSteps=true&page.size=20&page.offset=" + iPageOffset;
@@ -928,7 +932,7 @@ sap.ui.define([
         getplannedComponents: async function () {
 
             var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
-            //set the required params we plant and sfc
+            //set the required params -plant and sfc
             var selection = this.getPodSelectionModel().getSelections();
             var thesfc = selection[0].getSfc().getSfc();
             var params = {
@@ -1377,10 +1381,12 @@ sap.ui.define([
             // ****************** Complete ends here ********************
         }, //*************** stertOrderEn ends here *********************
 
+
         /**
-         * StartOrderAltEnhanced
+         * startOrderAltEnhanced
          */
-        StartOrderAltEnhanced: async function (eOrder, tevt) {
+        startOrderAltEnhanced: async function (tevt) {
+            // TODO: enclose in try catch 
 
             //make sure there is a selection in the Worklist
             if (!this.bCheckSelectionModel()) {
@@ -1388,10 +1394,6 @@ sap.ui.define([
                 return;
             }
 
-            if (!eOrder) {
-                this.showErrorMessage("Order Not selected");
-                return;
-            }
             var oValidationButton = this.getView().byId("ValidateCompType");
             var oStartOrderButton = this.getView().byId("OrderStartType");
             var oCompleteButton = this.getView().byId("CompletComp");
@@ -1401,6 +1403,7 @@ sap.ui.define([
             var sfcResource = this.getView().getModel().getProperty("/resource");
             //var sfcResource = this.getPodSelectionModel().getResource().getResource();
             var oconfig = this.getConfiguration();
+            //TODO remove comments after done so we introduct PRT again.
             
             /********************* Check PRT ****************************/
             // var prtval = await this.prtLoadingValidation();
@@ -1421,31 +1424,28 @@ sap.ui.define([
             var oWorkListData= await this.getWorklistDataSelectedOrder();
             
             } catch (error){
-                //Do something with the error.
+                oLogger.info(`getWorklistDataSelectedOrder: Error : ${error}`);
+                throw error;
             }
+            //marker9
+            // get all Sfcs from the result of the getWorklistDataSelectedOrder;
+            var allSfcs = oWorkListData[0].orderSfcs;
+            oLogger.info( `we have ${allSfcs.length} number of Sfcs`);
 
-            
+            // //Get all the sfcs in the order AltEnhanced
 
-            //Get all the sfcs in the order AltEnhanced
             try {
-                var allSfcs = await this.getAllSfcsInOrder(eOrder);
-            } catch (error) {
-                this.showErrorMessage("failed to get Sfc's for the Order: " + eOrder, true, true);
-                this.resetButtonsWrkfl();
-            }
-            oLogger.info("sfcs found in Order  " + allSfcs.length);
-            
-            /**************************** Filter for only startable sfcs */
-            try {
-                var sfcstostart = await this.filterStartableSFCs(allSfcs);
+                var sfcsReadyToStart = await this.filterStartableSFCsAlt(allSfcs);
+                oLogger.info(`list of sfcs that are startable frm filterStartableSFCsAlt is ${sfcsReadyToStart}`);
 
-                // 
-            } catch (error) {
-                this.showErrorMessage("An error was detected: StartOrderEnhanced ", true);
-                this.resetButtonsWrkfl();
+
             }
-            oLogger.info("startablesfcs size  " + sfcstostart.length);
-            var vlength = sfcstostart.length;
+            catch(error){
+                oLogger.info(` ${error} from filterStartableSFCsAlt`);
+            }          
+            oLogger.info("sfcs found in Order  " + sfcsReadyToStart.length);
+            
+            var vlength = sfcsReadyToStart.length;
             // if vlength === 0 the API call to start will be bypassed
             //Start the loop going through all the chunck of sfcs
             var sfcstocomplete = [];
@@ -1457,7 +1457,7 @@ sap.ui.define([
                 sfcstocomplete = sfcstostart;
             } else {
                 //TODO this will fail if sfcs are have status on HOLD etc
-                sfcstocomplete = allSfcs;
+                sfcstocomplete = sfcsReadyToStart;
                 sfcstocompletelength = allSfcs.length;
             }
             //bypass this loop if VALIDATE or COMPLETE
@@ -1466,37 +1466,45 @@ sap.ui.define([
             for (let i = 0; i < vlength; i += SFCS_CHUNK) {
                 
                 
-                let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);
-                        //var chunckStartd = this.simpleStartSfcsPost( sfcOperation,sfcplant,sfcResource,startSFCChunk);
+                let startSFCChunk = sfcsReadyToStart.slice(i, i + SFCS_CHUNK);
+           
                 
                 /** API Call to start all SFCS************** *********/
-
+                try {
                  var chunckStartd = await this.startAllSfcs(
                      sfcOperation,
                     sfcplant,
                     sfcResource,
                     startSFCChunk
                     );
+                 }catch (error){
+                    this.resetButtonsWrkfl();
+                 }
                    
-                    var isfail = (typeof chunckStartd ==='undefined')? true: false;
+                    //var isfail = (typeof chunckStartd ==='undefined')? true: false;
                     
-                    this.showErrorMessage((typeof chunckStartd === 'undefined'),true);
-                    if (isfail){
-                        oStartOrderButton.setBusy(false);
-                    }
+                    //this.showErrorMessage((typeof chunckStartd === 'undefined'),true);
+                    //if (isfail){
+                     //   oStartOrderButton.setBusy(false);
+                    //}
                      //delay for 1s give the gateway chance to cope
-                     var waitfor= await this.delay(1000);
+                     // only if we have multiple CHUNKS
+                     if (vlength > SFCS_CHUNK){
+                        var waitfor= await this.delay(1000);
+                     }
             }
             /****************** End of  LOOP to startall sfcs ***********/
             oStartOrderButton.setBusy(false);
 
             if (oconfig.executeStartOrderOnlyVisible) {
-                return;
+                //return the started SFC's
+                return "NoValidation";
             } 
             //************* Validation starts here ********************
 
             oValidationButton.setBusy(true);
             try {
+                //get the components for sfc the functions looks at the selected sfc
                 var theComponents = await this.getComponentsForSfc();
             } catch (error) {
                 this.showErrorMessage("An error was detected:getComponentsForSfc ", true);
@@ -1563,11 +1571,51 @@ sap.ui.define([
 
             } //enfor complete
             // reset all buttons to setbusy false
+       
+
             oCompleteButton.setBusy(false);
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
             // ****************** Complete ends here ********************
         }, 
+
+        /**
+         * filterStartableSFCSAlt
+         * @param {*} allsfcsinorder an array of Sfcs in the format returned from ssfcs=getWorklistDataSelectedOrder().orderSfcs
+         * @returns and array of all startable sfcs - takes care of not including sfcs that belong to different operation ,resource , and 0 in inQueue value.
+         * 
+         */
+        filterStartableSFCsAlt: async function (allsfcsinorder) {
+            var startableSFCS = [];
+            var promises = allsfcsinorder.map(item => {
+                return new Promise((resolve, reject) => {
+
+                   //check if startable : criterion is that the sfc code  is new or - in queue and quantity in Queue must be > 0.
+                   var isStartable=false;
+                   if ( item.status.code == SFCS_NEW){
+                    isStartable = true;
+                    
+                   } 
+                   else {
+                    if (item.status.code == SFCS_INQUE && (item.quantityInQueue > 0)){
+                        isStartable=true;
+                    }
+                   }
+                   // var isStartable = (item.status.code  === SFCS_NEW) || (item.status.code === SFCS_INQUE && item.quantityInQueue > 0);
+                   
+                    if (isStartable) {
+                        startableSFCS.push(item.sfc);
+                    }
+                    resolve();
+                });
+            });
+            try {
+                await Promise.all(promises);
+                return startableSFCS;
+            } catch (error) {
+                oLogger.info(`${error} from filterStartableSFCsAlt `); // Log any errors
+            }
+        },
 
 
 
@@ -1657,13 +1705,26 @@ sap.ui.define([
                 }
             } // if (vetted)
         },
-
+        //marker8
+        /**
+         * onTestFunction
+         * temporary to work out the getWorklistDataSelectedOrder
+         * eventually will become its own buton StartOrder Enhanced 
+         * @param {*} evt 
+         */
         onTestFunction:async function (evt) {
-            var oAlt= await this.StartOrderAltEnhanced();
-          //this.showErrorMessage("ready?");
-            var thelist=await this.getWorklistDataSelectedOrder();
-            var thesfcs=await this.getSfcsInWork();
-            oLogger.info(thesfcs);
+            try {
+                //Do we need to test here for valid state with selection?
+                var oAlt = await this.startOrderAltEnhanced(evt);
+                //this.showErrorMessage("ready?");
+                //var thelist=await this.getWorklistDataSelectedOrder();
+                //var thesfcs=await this.getSfcsInWork();
+                    oLogger.info(oAlt);
+            } catch (error) {
+                var sErr=`Error in StartOrderAltEnhanced : ${error}`;
+                oLogger.info(sErr);
+                this.showErrorMessage(sErr);
+            }
 
             if (0) {
                 //this.showSuccessMessage("OnTestButton ");
@@ -2405,5 +2466,4 @@ sap.ui.define([
     return oPluginViewController; 
     
 });
-
 
