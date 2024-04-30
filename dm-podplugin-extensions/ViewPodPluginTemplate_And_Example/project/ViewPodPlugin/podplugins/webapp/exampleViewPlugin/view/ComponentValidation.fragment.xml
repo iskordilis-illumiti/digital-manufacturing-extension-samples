@@ -25,6 +25,7 @@
                 press="onValidateComponent"
                 
             />
+            <Label text="r out of n components validated ---- Last component validated : ***YYY" width = "55%" id="msgcustid"/>
                 </Toolbar>
                 </headerToolbar>
 

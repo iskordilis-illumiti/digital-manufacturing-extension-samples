@@ -58,11 +58,12 @@
                             <Label id="orderTypeLable" text="Order" class="sapUiTinyMarginEnd"/>
                             <!-- <Input id="OrderTypeInput"  value="{/orderselect}" class="sapUiTinyMarginEnd"/> -->
                             <Label id="OrderValueLabel" text="{/orderselect}" class="sapUiTinyMarginEnd"/>
-                            <Button  id="OrderStartType" text="Start Order" type="Emphasized" press=".onStartOrderEnhanced" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
+                            <Button  id="OrderStartType" text="Start Order" type="Emphasized" visible="false" press=".onStartOrderEnhanced" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
+                            <Button id="TestFunction" text="Start Order *" visible="true" type="Emphasized"  press=".onTestFunction" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
                             <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponentsEn" class="sapUiTinyMarginEnd"/>
                             <Button id="CompletComp" text="Complete Order" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onCompleteOrderSfcs" class="sapUiTinyMarginEnd"/>
                             <Button id="SignoffComp" text="Sign Off Components" visible="false"  press=".onSignOffComponents" class="sapUiTinyMarginEnd signoff-color"/>
-                            <Button id="TestFunction" text="AltSO" visible="true"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="TestFunctionx" text="AltSO" visible="false"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestFlow" text="Signoff" visible="true"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
                             <Label id="MessageAreaId" text="Message Area" class="sapUiTinyMarginEnd"/>
 

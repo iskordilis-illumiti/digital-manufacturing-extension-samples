@@ -17,8 +17,12 @@ sap.ui.define([
     //  this will be global var in this POD context
     // this object is updated everytime that the selection on the worklist is changed
     // the loadModel  is updated to merge this object into the model in the view
+    //TODO create a closure function with getters and setters to remove this from
+    // The global space. Use the onInit to initialize.
+    // in the loadModel use the getters and setters to populate the Object that will 
+    // become the object.
 
-    var wrklstcurrentsel = {}, wrklstsopersel = "notset";
+    var wrklstcurrentsel = {}, wrklstsopersel = "notset" , uniqueCSel={};
     var glbStack = [];
     var _glbstartableSFCObj = {
         _sfcGoodToStart: [],
@@ -59,6 +63,7 @@ sap.ui.define([
     const SFCS_SCRAPPED = 407;
     const SFCS_INVALID = 408;
     const SFCS_DELETED = 409;
+    const VSTORE_LIMIT=50;
 
     //--------------------------------------------------------------------------
 
@@ -152,16 +157,36 @@ sap.ui.define([
         onWorkListSelectEvent: function (sChannelId, sEventId, oData) {
             //get the data from the worklist selection row into wklstcurrentsel
             //get the operation into wrklstsopersel
-            if ((typeof oData === 'undefined') || oData.selections.length === 0){
-                wrklstcurrentsel="";
-                wrklstsopersel="notset";
+            if ((typeof oData === 'undefined') || oData.selections.length === 0) {
+                wrklstcurrentsel = {};
+                wrklstsopersel = "notset";
                 // TODO: clear the input text box.
                 // or the model will automatically clear it ?
 
-            } 
+            }
             else {
-            wrklstcurrentsel = oData;
-            wrklstsopersel = oData.selections[0].operation ? oData.selections[0].operation : "notset";
+                let iOpLen = oData.selections.length;
+                //get the current selections if any
+                let curSel = this.getView().getModel().getProperty("/wrklstrows");
+                oLogger.info(`The current selection is ${curSel}`);
+
+                //The new set of selections
+                //any selection in wrklstcurrentsel not included in the curSel is the single current selection
+                // When we have multiseletions.          
+                wrklstsopersel = oData.selections[iOpLen - 1] ? oData.selections[iOpLen - 1].operation : "notset";
+                wrklstcurrentsel = oData;
+                if (Object.keys(curSel).length !== 0){      
+                    // compare the selections at hand with the new selections from the event
+                    // the new exra selection becomes the current unique selection.
+                    // put this into the model since it includes a lot of other information in addition to
+                    // sfc - like  order , material , operation and others.
+
+                let uniqueSel = wrklstcurrentsel.selections.filter(wrkSel => !curSel.selections.some(curSel => curSel.sfc === wrkSel.sfc));
+                oLogger.info ( `the current selection is ${JSON.stringify(uniqueSel)}`);
+                }
+                else {
+                    curSel=wrklstcurrentsel;
+                }
             }
             oLogger.info(`onWorklistSelectEvent  ${wrklstsopersel}`);
             // don't process if same object firing event
@@ -280,6 +305,7 @@ sap.ui.define([
             
             
             var sfcResource = this.getView().getModel().getProperty("/resource");
+            //Any sfc will do for the prtLoadingValidation ?
             var thesfc = selection[0].getSfc().getSfc();
             var xpsfcs = [];
             xpsfcs.push(thesfc);
@@ -303,11 +329,11 @@ sap.ui.define([
                         function (oError, sHttpErrorMessage) {
                             oLogger.info("prtLoadingValidation API call failed " + sHttpErrorMessage);
 
-                            if (oError){
-                            that.showErrorMessage(oError, true);
-                            } else {
-                                that.showErrorMessage(sHttpErrorMessage, true);
-                            }
+                            //if (oError){
+                            //that.showErrorMessage(oError, true);
+                            //} else {
+                           //     that.showErrorMessage(sHttpErrorMessage, true);
+                          //  }
                             reject(oError);
                         });
                 });
@@ -449,7 +475,8 @@ sap.ui.define([
                 var oResponseData = await new Promise((resolve, reject) => {
                     var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?";
                     var selection = this.getPodSelectionModel().getSelections();
-                    var thesfc = selection[0].getSfc().getSfc();
+                    //sfc is not used in the API
+                    //var thesfc = selection[0].getSfc().getSfc();
                     var thePlant = this.getPodController().getUserPlant();
                     var theOperation = this._getWorkListSelectedOperationGlb();
                     var sfcResource = this.getPodSelectionModel().getResource().getResource();
@@ -501,7 +528,8 @@ sap.ui.define([
                     var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcsInWork?page.size=100";
 
                     var selection = this.getPodSelectionModel().getSelections();
-                    var thesfc = selection[0].getSfc().getSfc();
+                    //sfc is not used in the API
+                    //var thesfc = selection[0].getSfc().getSfc();
                     var thePlant = this.getPodController().getUserPlant();
                     var theOperation = this._getWorkListSelectedOperationGlb();
                     var sfcResource = this.getPodSelectionModel().getResource().getResource();
@@ -571,6 +599,7 @@ sap.ui.define([
                 var oResponseData = await new Promise((resolve, reject) => {
                     var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
                     var selection = this.getPodSelectionModel().getSelections();
+                    //any sfc in the order should work so pick the first one ?
                     var thesfc = selection[0].getSfc().getSfc();
                     var thePlant = this.getPodController().getUserPlant();
 
@@ -934,6 +963,7 @@ sap.ui.define([
             var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
             //set the required params -plant and sfc
             var selection = this.getPodSelectionModel().getSelections();
+            //any sfc will work since for Lutron all sfcs have the same components?
             var thesfc = selection[0].getSfc().getSfc();
             var params = {
                 plant: this.getPodController().getUserPlant(),
@@ -1403,19 +1433,32 @@ sap.ui.define([
             var sfcResource = this.getView().getModel().getProperty("/resource");
             //var sfcResource = this.getPodSelectionModel().getResource().getResource();
             var oconfig = this.getConfiguration();
+            //this.showErrorMessage("Order Started",true);
             //TODO remove comments after done so we introduct PRT again.
             
             /********************* Check PRT ****************************/
-            // var prtval = await this.prtLoadingValidation();
-            // //make sure that prtval is valid and accomodate a prt api failure
-            //   // check for undefined
-            // if (!prtval || prtval.validationResult !== "PRT_PASSED") {
-            //     this.showErrorMessage("Tool validation failed , StartOrder will not continue");
-            //     return;
-            // }
-
-            // oLogger.info("results of prtLoadingValidation is: " + prtval.validationResult);
-            //  /********************* End Check PRT*** *********************/
+            try {
+                let prtval = await this.prtLoadingValidation();
+            
+                // Make sure that prtval is valid and accommodate a prt api failure
+                if (prtval === null || prtval === undefined || prtval.validationResult !== "PRT_PASSED") {
+                    let errorMessage = "Tool validation failed.";
+                        this.showErrorMessage(errorMessage);
+                    return;
+                    //throw new Error({Error:"Tool validation failed"});
+                }
+            
+                
+            } catch (error) {
+                // Handle the error here
+                //let errorMessage = "An error occurred during tool validation: " + error.message;
+                //this.showErrorMessage(errorMessage);
+                //throw error;
+                let errorMessage = "Tool validation failed.";
+                this.showErrorMessage(errorMessage);
+                return null;
+         
+            }
 
             //TODO this is not the correct button change
             oStartOrderButton.setBusy(true);
@@ -1488,12 +1531,19 @@ sap.ui.define([
                      //   oStartOrderButton.setBusy(false);
                     //}
                      //delay for 1s give the gateway chance to cope
-                     // only if we have multiple CHUNKS
+                    
                      if (vlength > SFCS_CHUNK){
-                        var waitfor= await this.delay(1000);
-                     }
-            }
+                        // only if we have multiple CHUNKS
+                        let mfactor = Math.ceil((vlength - SFCS_CHUNK)/1000);
+                        let tdelay = 1000 * mfactor;
+                        var waitfor = await this.delay(tdelay);
+                    }
+
+                  
+            } //for loop
+            this.showErrorMessage("Order Started ",true);
             /****************** End of  LOOP to startall sfcs ***********/
+            //this.showErrorMessage("Order Started",true);
             oStartOrderButton.setBusy(false);
 
             if (oconfig.executeStartOrderOnlyVisible) {
@@ -1502,9 +1552,15 @@ sap.ui.define([
             } 
             //************* Validation starts here ********************
 
+            //TODO check to see if components for this set of sfcs , operation , resource ,plant 
+            // are already validated - bypass validation if true and go straight to complete.
+            // if the validation has failed then either redo the validation or do not complete and exit.
+            
+
             oValidationButton.setBusy(true);
             try {
                 //get the components for sfc the functions looks at the selected sfc
+                //marker11
                 var theComponents = await this.getComponentsForSfc();
             } catch (error) {
                 this.showErrorMessage("An error was detected:getComponentsForSfc ", true);
@@ -1541,6 +1597,8 @@ sap.ui.define([
                         oValidationButton.setBusy(false);
                         oCompleteButton.setBusy(false);
                         oStartOrderButton.setBusy(false);
+                        //TODO recheck this needs to throw exception or
+                        // return a value for failure .
                         return;
                     }
                 } catch (error) {
@@ -1552,6 +1610,7 @@ sap.ui.define([
             else {
                 this.resetButtonsWrkfl();
             }
+            this.showSuccessMessage("Validation passed",true);
             oCompleteButton.setBusy(true);
             //****** Validation  ends here ******************************
 
@@ -1576,6 +1635,7 @@ sap.ui.define([
             oCompleteButton.setBusy(false);
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
+            this.showSuccessMessage("Order Completed for current operation",true);
             // ****************** Complete ends here ********************
         }, 
 
@@ -1625,6 +1685,12 @@ sap.ui.define([
          */
 
         onValidateComponentsEn : async function(){
+
+            //TODO wrap around a try catch 
+            // this way there will be a valid valres
+            // or an exception which will be handled in the 
+            // catch 
+
             var valres= await this.validateComponentsEnhanced();
             if ((typeof valres=== 'undefined')){
                 valres="undefined - no components to validate";
@@ -1647,6 +1713,7 @@ sap.ui.define([
         validateComponentsEnhanced: async function () {
             if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("No selection was found");
+                //TODO throw exception first 
                 return;
             }
             var oValidationButton = this.getView().byId("ValidateCompType");
@@ -1660,11 +1727,15 @@ sap.ui.define([
             } catch (error) {
                 this.showErrorMessage("An error was detected: " + error.message, true);
                 this.resetButtonsWrkfl();
+                //TODO either return or rethrow the exception
             }
 
             // tranform theComponents into single row array with just the component
+            // TODO might be better to make this async and use await  just in case we have side effects
+
             var tranformedComponents = this.transformComponentData(theComponents);
             //vet the components against the classificaton entry  Marker3
+            // TODO wrap around try catch 
             var vetted = await this.vetComponentsToValidate(tranformedComponents);
             oLogger.info(" vetted= " + vetted);
 
@@ -1691,6 +1762,8 @@ sap.ui.define([
                         oStartOrderButton.setBusy(false);
                         this.showErrorMessage("Validation has failed",true);
 
+                        //TODO throw exception and return status = "VALIDATION_FAIL"
+
                         return;
                     }
                     else {
@@ -1705,6 +1778,59 @@ sap.ui.define([
                 }
             } // if (vetted)
         },
+
+        /**
+         * createValidationStatus
+         */
+
+        createValidationStatus: async function () {
+            try {
+                var vResult = await new Promise((resolve, reject) => {
+                    //set the values here
+                    // marker12
+                    var selection = this.getPodSelectionModel().getSelections();
+                    var thesfc = selection[0].getSfc().getSfc();
+
+                    vstatus = {
+                        plant:this.getPodController().getUserPlant(),
+                        resource:this.getView().getModel().getProperty("/resource"),
+                        operation:this._getWorkListSelectedOperationGlb(),
+                        sfc:thesfc,
+                        validated:false
+
+                    };
+                    resolve(vstatus);
+                });
+
+                return vResult;
+            } catch (error) {
+
+                this.showErrorMessage("failed to create validation Status");
+                throw error;
+            }
+        },
+
+        /**
+         * createVStatusStore
+         * @returns the created Validation status object
+         * 
+         */
+        createVStatusStore: function (){
+           var oValidations=[];
+            return {
+                addValidationStatus: async function (){
+                    var nValidation = await this.createValidationStatus();
+                    if ( oValidations.length >=VSTORE_LIMIT){
+                        oValidations.shift();
+                    }
+                    oValidations.push( nValidation);
+                },
+                searchValidationStatus:function (propertyName , value ) {
+                    return oValidations.filter ( vstatus => vstatus[propertyName]===value);
+                }
+            }
+        },
+
         //marker8
         /**
          * onTestFunction
@@ -1719,11 +1845,11 @@ sap.ui.define([
                 //this.showErrorMessage("ready?");
                 //var thelist=await this.getWorklistDataSelectedOrder();
                 //var thesfcs=await this.getSfcsInWork();
-                    oLogger.info(oAlt);
+                    //oLogger.info(oAlt);
             } catch (error) {
-                var sErr=`Error in StartOrderAltEnhanced : ${error}`;
-                oLogger.info(sErr);
-                this.showErrorMessage(sErr);
+                var sErr=`Error in StartOrderAltEnhanced : ${JSON.stringify(error)}`;
+                //oLogger.info(sErr);
+                //this.showErrorMessage(sErr);
             }
 
             if (0) {
@@ -1786,6 +1912,11 @@ sap.ui.define([
             
         },
 
+        /**
+         * 
+         * onSignOffComponents
+         * @param {*} evt 
+         */
         onSignOffComponents: function (evt) {
             console.log("Validate button pressed");
             var signoffpromise = this.signOffSfcs();
@@ -1897,7 +2028,9 @@ sap.ui.define([
         ComponentAPISucsess: function (oResponseData, vettedComponents) {
             var result = oResponseData;
             var componentmodel = {
-                components: []
+                components: [],
+                ndcomponents:[]
+
             };
             for (let i = 0; i < result.length; i++) {
                 //check first if the component if is vetted
@@ -1905,13 +2038,26 @@ sap.ui.define([
                 var rowColumn0 = result[i].component;
 
                 if (vettedComponents.includes(rowColumn0)) {
+
+                    //push with masked with asterics apart from the first 4 chars
+                    let unmasked = result[i].component;
+                    //let masked = '*'.repeat(3)+unmasked.slice(3);
+                    let masked = unmasked.slice(0,-3) + "***";
                     componentmodel.components.push(
+                        { component: masked, description: result[i].componentDescription, validated: "N" }
+                    );
+                    //componentmodel.components.push(
+                    //    { component: result[i].component, description: result[i].componentDescription, validated: "N" }
+                    //);
+                    //push the actual non display
+                    componentmodel.ndcomponents.push(
                         { component: result[i].component, description: result[i].componentDescription, validated: "N" }
                     );
                 }
             }
             // put the table model into the View Model
             this.getView().getModel().setProperty("/components", componentmodel.components);
+            this.getView().getModel().setProperty("/noDisplayComponents",componentmodel.ndcomponents);
             return componentmodel;
         },
 
@@ -1919,12 +2065,14 @@ sap.ui.define([
             this.showErrorMessage(oError + "  " + sHttpErrorMessage, true);
         },
 
+
         startAllSfcsWorkflow: async function (order) {
             oLogger.info("start all sfcsworkflow clicked");
         },
 
 
         // [Validate component IS]
+        // TODO not used any more remove eventually
         //------------------ Start Validate Components --------
 
         onValidateComponents: function (evt) {
@@ -1976,6 +2124,11 @@ sap.ui.define([
                 this._oDialog.open();
             } //--
         },
+
+        /**
+         * resetButtonsWrkfl 
+         * resets all buttons to active 
+         */
         resetButtonsWrkfl: function () {
             var oValidationButton = this.getView().byId("ValidateCompType");
             var oStartOrderButton = this.getView().byId("OrderStartType");
@@ -1985,30 +2138,43 @@ sap.ui.define([
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
             //oLabelStatus.setText("Process status ..idle");
-
-
-
         },
 
+        /**
+         * onValidateComponent
+         * 
+         */
 
         onValidateComponent: function () {
             var oTable = this.byId("Vcomp");
             var oInput = this.byId("componentInput");
             var sValue = oInput.getValue();
-            /** changes 03/20/2024 */
+            var shadowTableModel = this.getView().getModel().getProperty("/noDisplayComponents");
+            var selectionStatus = this.byId("msgcustid");
+
+           
             //Clear the input box 
             oInput.setValue("");
-            /** end changes  03/20/2024 */
+            
             
             var aItems = oTable.getItems();
             var bFound = false;
+            var selectedItems=0;
+            var lastFoundIndex=0;
+            var lastselectedComponent="";
 
             for (var i = 0; i < aItems.length; i++) {
+                var shadowItem = shadowTableModel[i];
                 var oItem = aItems[i];
                 var oCells = oItem.getCells();
+                var shadowCell = shadowItem.component;
 
-                if (oCells[0].getText() === sValue) {
+                //if (oCells[0].getText() === sValue) {
+                    if (shadowCell === sValue){
                     bFound = true;
+                    lastFoundIndex = i;
+                    //lastselectedComponent=oCells[0].getText();
+                    lastselectedComponent=sValue;
                     oCells[2].setText("Y");
                     oItem.addStyleClass("markFound"); // Add a CSS class to change the color of the row
                     break;
@@ -2022,8 +2188,13 @@ sap.ui.define([
                 //this._oResolve(0); // Resolve the Promise with 0
             } else {
                 var bAllChecked = aItems.every(function (oItem) {
+                    if (oItem.getCells()[2].getText() === "Y"){
+                        selectedItems++;
+                    }
                     return oItem.getCells()[2].getText() === "Y";
                 });
+                
+                selectionStatus.setText(`${selectedItems} out of ${aItems.length} validated ---- last validated: ${lastselectedComponent} `);
 
                 if (bAllChecked) {
                     this._oDialog.close();
@@ -2031,6 +2202,11 @@ sap.ui.define([
                 }
             }
         },
+
+        /***
+         * 
+         * openValidateDialog
+         */
 
         openValidateDialog: async function () {
             return new Promise((resolve, reject) => {
@@ -2058,15 +2234,33 @@ sap.ui.define([
                 }
             });
         },
+
+        /**
+         * onValDEscape
+         */
         onValDEscape: function (e) {
             e.resolve(-1);
             var oValidationButton = this.getView().byId("ValidateCompType");
             oValidationButton.setBusy(false);
-
-
         },
 
-        //----------------- End Validate Components ----------
+
+        /**
+         * onValidatePressedx
+         * 
+         * Gets the user input from the validation text box
+         * compares the shadow list ( the display list has asteriscs)
+         * With the user inpup
+         * if there is a match it marks it , changes the color
+         * of the line item to green
+         * if no match then it gives an error message and if ready for 
+         * further input. If all the components are matched then it exits
+         * with success for the validation
+         * if the ESC key is pressed then it exits with validatio failure.
+         * @param {
+         * } evt Event is ignored
+         * @returns 
+         */
         onValidatePressedx: function (evt) {
             var howManyMatched = 0;
             this.showSuccessMessage("Validate button pressed");
@@ -2106,12 +2300,14 @@ sap.ui.define([
 
             }
         },
+
         /**
          * completeSfcs();
          *  expects there is a selection in the selection model
          * and an array with with the sfc(s) to complete
          */
 
+        //TODO refactor using  the getWorklistDataSelectedOrder 
         completeSfcs: async function () {
             if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("No Order is selected");
@@ -2120,6 +2316,7 @@ sap.ui.define([
             
             oCompleteButton.setBusy(true);
             //Marker
+            //TODO put into try catch block
             var eOrder = this.getView().byId("OrderValueLabel").getText();
             var allSfcs = await this.getAllSfcsInOrder(eOrder);
             var sfcstocomplete = await this.filterActiveSFCS(allSfcs);
@@ -2134,6 +2331,7 @@ sap.ui.define([
             //so for good measure set to false first.
             oCompleteButton.setBusy(false);
             oCompleteButton.setBusy(true);
+
             for (let i = 0; i < clength; i+=SFCS_CHUNK) {
                 let completeSFCChunk = sfcstocomplete.slice(i, i + SFCS_CHUNK);  
 
@@ -2146,6 +2344,8 @@ sap.ui.define([
                     
                 }
             }
+            //this.showSuccessMessage("completeDone.",true);
+            this.showSuccessMessage("Order Completed for current operation",true);
             oCompleteButton.setBusy(false);
             return oComplete;
         },
@@ -2155,10 +2355,22 @@ sap.ui.define([
             this.completeSfcs();
         },
         
+        /**
+         * 
+         * 
+         * onSignOffComponents
+         * @param {*} evt 
+         */
         onSignOffComponents: function (evt) {
             this.showSuccessMessage("Validate button pressed");
 
         },
+
+        /**
+         * TODO not used remove eventually
+         * @param {*} state 
+         * @returns 
+         */
         stateMachineLutronProcess: function (state) {
 
 
@@ -2224,12 +2436,16 @@ sap.ui.define([
             }
         },
 
-        //--------------------------------------
-        // //[LoadModel IS]
-        // loadModel
-        // The loadModel aggregates all the current information from the POD and 
-        // set this model as the view model
-        //-------------------------------------------
+       
+     
+        /**
+         * 
+         * loadModel
+         * 
+         * loadModel aggregates all the needed info from the POD and selections
+         * and then it sets the model for the view.
+         * 
+         */
 
         loadModel: function () {    
             //get the view in oView 
@@ -2237,6 +2453,18 @@ sap.ui.define([
             var oPodController = this.getPodController();   
             //get configuration as set in the POD designer 
             var oConfiguration = this.getConfiguration();   
+            //hide the buttons that are set as hidden from the POD designer configuration.
+            // TODO move this outside the LoadModel since we only need to set this once
+            // but loadModel is called multiple times.
+
+            var oValidationButton = this.getView().byId("ValidateCompType");
+            var oStartOrderButton = this.getView().byId("OrderStartType");
+            var oCompleteButton = this.getView().byId("CompletComp");
+            var oSignoffButton = this.getView().byId("");
+            oCompleteButton.setVisible(oConfiguration.completeButtonVisible);
+            oValidationButton.setVisible(oConfiguration.validateButtonVisible);
+
+
             oLogger.info("config: " + JSON.stringify(oConfiguration));  
             var bNotificationsEnabled = true;   
             // if notification is enabled
@@ -2344,28 +2572,28 @@ sap.ui.define([
                 //Not needed for lutron but i leave it in.
                 materialCustomFields: aMaterialCustomFields,
                 pstatus: oPstatus,
-                wrklstrow: wrklstcurrentsel,
+                wrklstrows: wrklstcurrentsel,
                 material: "",
                 startableSFCs: [],
                 activeSFCs: [],
                 components: [],
-                validatedComponents:[]
+                noDisplayComponents:[],
+                validatedComponents:[],
+                validationStatuses:[],
+                uniqueCurrentSelection:uniqueCSel,
+                curSelections:[]
             };
-
+            if (Object.keys(oModelData.uniqueCurrentSelection).length !==0){
+                oModelData.orderselect = oModelData.uniqueCurrentSelection.shopOrder;
+                oModelData.operation=oModelData.uniqueCurrentSelection.operation;
+            }
+            //TODO remove the code below is superflows.
             if (aOperations.length === 1) { 
                 oModelData.operation = aOperations[0].operation; 
             }
-            // add material custom fields to model 
-            //this.addMaterialCustomFields(oPodController.getUserPlant(), sMaterial);
 
             var oModel = new JSONModel(oModelData); 
-            //this._debugGlb("Model is re-intialized with :" + (oModelData.startableSFCs), oModelData.operation);
-
-            // Set the model for the View with the gathered info
-            // if we have aInputs we want to set in the model the first material 
-            // for the Lutron plugin
             oModelData.material = aInputs.length ? aInputs[0].material : "";
-
             oView.setModel(oModel); 
         },
 
