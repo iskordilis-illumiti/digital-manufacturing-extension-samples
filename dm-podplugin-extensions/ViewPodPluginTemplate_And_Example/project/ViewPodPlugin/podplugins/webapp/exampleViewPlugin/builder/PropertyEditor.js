@@ -24,6 +24,10 @@ sap.ui.define([
             this.addSwitch(oPropertyFormContainer,"validateButtonVisible",oData);
             this.addSwitch(oPropertyFormContainer,"completeButtonVisible",oData);
             this.addSwitch(oPropertyFormContainer,"signoffButtonVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"startOrderVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"startOrderSerializeVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"splitSFCVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"relabelSFCVisible",oData);
             
             
         },
@@ -37,8 +41,11 @@ sap.ui.define([
                 "executefullFlowVisible": true,
                 "validateButtonVisible": true,
                 "completeButtonVisible": true,
-                "signoffButtonVisible": true
-
+                "signoffButtonVisible": true,
+                "startOrderVisible" : true,
+                "startOrderSerializeVisible":true,
+                "splitSFCVisible": true,
+                "relabelSFCVisible": true
 
 
             };

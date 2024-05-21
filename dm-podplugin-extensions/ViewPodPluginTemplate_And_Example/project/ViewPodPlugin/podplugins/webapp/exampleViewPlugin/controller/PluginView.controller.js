@@ -1160,6 +1160,22 @@ sap.ui.define([
             return true;   
         },
 
+        SplitSfcCustom:async function(newSfc,iQuantity){
+            
+            sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/split?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+
+
+        },
+
+        relabelSfcCustom:async function(thesfc, newSfc){
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/relabel?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+            
+
+        },
+
+
 
         /**
          * 
@@ -1207,6 +1223,704 @@ sap.ui.define([
         },
         onEnterPressed(evt) {
             this.onValidateComponent();
+        },
+        onStartOrderSerialize:async function(){
+            let retv= await this.startOrderSerialize();
+
+        },
+        /**
+         * startOrderSerialize
+         * 
+         * 
+         * @returns Nothing
+         */
+
+        startOrderSerialize: async function () {
+
+            //check for selection 
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("Please make a Selection first.");
+                return;
+            }
+            //check for single sfc
+            var selection = this.getPodSelectionModel().getSelections();
+            if (selection.length > 1) {
+                this.showErrorMessage("Please make a single Selection Only");
+                return;
+            }
+            //make sure the SFC is actually startable.
+            var thesfc = selection[0].getSfc().getSfc();
+            var theQuantity=selection[0].sfcData.quantity;
+
+
+            this.showErrorMessage(`sfc is = ${thesfc}`, true);
+            let bCanStart = await this.getSfcStatusIsStartable(thesfc);
+
+            if (!bCanStart) {
+                this.showErrorMessage("selected SFC is not startable", true);
+                return;
+            }
+
+            //Validate DataCollections
+            var iOperation= this.getView().getModel().getProperty("/operation");
+            var iPlant=this.getPodController().getUserPlant();
+            var iResource=this.getView().getModel().getProperty("/resource");
+
+        var valdcRes= await this.getUncollectedParameters(thesfc,iOperation,iResource);
+        if (valdcRes.uncollectedParams.length!=0){
+            this.showErrorMessage("Data Collection is not done");
+            return ;
+        }
+
+console.log(`return value is ${valdcRes}`);
+            //Validate Prt
+            try {
+            var prtval = await this.prtLoadingValidation();
+            //make sure that prtval is valid and accomodate a prt api failure
+            // check for undefined
+            if (!prtval || prtval.validationResult !== "PRT_PASSED") {
+                this.showErrorMessage("Tool validation failed , StartOrder will not continue");
+                return;
+            }
+        }catch( error){
+            this.showErrorMessage(error);
+            return;
+        }
+
+            //Start the single SFC (all quantity)
+
+          
+            var sSfcs=[thesfc];
+            var startRes=await this.startAllSfcs(iOperation,iPlant,iResource,sSfcs);
+
+            let dlgRes= await this.laborOnDialog();
+            var noops= this.getView().getModel().getProperty("/numberOfOperators");
+        // call laborOn API.
+        
+        var reslabor = await this.laborOn(noops);
+
+
+
+
+            //check Quantity
+            let cQuantity=parseInt(theQuantity);
+            if (cQuantity === 1){
+                //nothing to do 
+                return;
+            }
+
+            cQuantity = cQuantity - 1;
+            this.showErrorMessage( `quantity to serialize is =${cQuantity}`);
+            
+            
+             //Loop with chuncks of quantity of 300 until sfc quantity <=0
+
+            //call Serialize sfc API
+            while (cQuantity > 0){
+                let isubv = (cQuantity > 300 ) ? 300 : cQuantity;
+                let serRes=await this.serializefcAPI(thesfc , isubv);
+
+              cQuantity -=isubv;
+            }
+
+
+            //Done (dont we need to set the quantity on the original sfc to 1?)
+            // we need to check if SerializeAPI does this automatically (subtracts from the quantity)
+            //var qRes= await this.sfcSetQuantity(1);
+
+
+        },
+
+        laborOnDialog: async function () {
+            var oDialog = new sap.m.Dialog({
+                title: "Labor On Details",
+                content: [
+                    new sap.m.Label({ text: "Total Number of Operators" }),
+                    new sap.m.Input({ type: "Number", value: 0, id: "inputControl" })
+                ],
+                buttons: [
+                    new sap.m.Button({
+                        text: "OK",
+                        type: "Emphasized",
+                        press: function () {
+                            var inputValue = sap.ui.getCore().byId("inputControl").getValue();
+                            this.getView().getModel().setProperty("/numberOfOperators",inputValue);
+                            oDialog.close();
+                            console.log("Input Value: ", inputValue);
+                            
+                        }
+                    }),
+                    new sap.m.Button({
+                        text: "Cancel",
+                        press: function () {
+                            oDialog.close();
+                            console.log("Input Value: ", -1);
+                            this.getView().getModel().setProperty("/numberOfOperators",-1);
+                        }
+                    })
+                ]
+            });
+
+            oDialog.open();
+
+        },
+
+
+        /**
+         *  SerializeAPI
+         * @param {} thesfc 
+         * @param {*} pquantity 
+         * @returns 
+         */
+        serializefcAPI: async function ( thesfc,pquantity) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/serialize?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+            
+            var ssfcParameters = {
+                plant: sfcplant,
+                sfc: thesfc,
+                newSfcs:[],
+                quantity:pquantity,
+                copyWorkInstructionData:true,
+                copyComponentTraceabilityData:true,
+                copyNonConformanceData:true,
+                copyBuyoffData:true,
+                copyDataCollectionData:true,
+                copyActivityLogData:true
+
+            };
+            var that = this;
+    
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - sfc serialize sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in serialize SFC API : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            
+        },
+
+        getUncollectedParameters: async function (thesfc,oOperation,oResource){
+            var sUrl=this.getPublicApiRestDataSourceUri() + "/datacollection/v1/uncollectedParameters";
+            //set the required params -plant and sfc
+            var selection = this.getPodSelectionModel().getSelections();
+            
+            var oPlant= this.getPodController().getUserPlant();
+           
+            var params = {
+               
+                sfc: thesfc,
+                operation:oOperation,
+                resource:oResource,
+                plant:oPlant
+            }
+            var that = this;
+
+            var oResponseData = await new Promise((resolve, reject) => {
+                this.ajaxGetRequest(
+                    sUrl,
+                    params,
+                    function (oResponseData) { 
+                        that._debugGlb("response reached");
+
+                        
+                        resolve(oResponseData);
+                    }, function (oError, sHttpErrorMessage) {
+                        reject(oError);
+
+                    });
+
+
+            }); //cp
+            return oResponseData;
+
+        },
+
+        sfcSetQuantity : async function(iQuantity){
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/setQuantity";
+            var sfcplant = this.getPodController().getUserPlant();
+            
+            var ssfcParameters = {
+                plant: sfcplant,
+                sfcQuantityRequests: [{
+                    sfc: thesfc, quantity: iQuantity
+                }
+                ]
+            };
+            var that = this;
+    
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - sfc serialize sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in sfcSetQuantit API : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            
+
+        },
+
+        /**
+         * LaborOn
+         * @returns 
+         */
+
+        laborOn: async function(nofops){
+            
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/timetracking/v1/direct-labor/start";
+            var sfcplant = this.getPodController().getUserPlant();
+            var iOperation= this.getView().getModel().getProperty("/operation");
+            var iResource=this.getView().getModel().getProperty("/resource");
+            var iOrder=this.getView().getModel().getProperty("/orderselect");
+            
+
+            var selection = this.getPodSelectionModel().getSelections();
+            var thesfc = selection[0].getSfc().getSfc();
+            var r=selection[0].sfcData.routing;
+            var rType=selection[0].sfcData.routingType;
+            var rVersion=selection[0].sfcData.routingVersion;
+            var workC=selection[0].workCenter;
+            var oStepId=selection[0].setpId;
+            var iUserId=this.getPodController().getUserId();
+
+            //assume single selection
+
+            
+            
+            var ssfcParameters = {
+                userId:iUserId,
+                plant: sfcplant,
+                resource:iResource,
+                workCenter:workC,
+                operation:iOperation,
+                operationVersion:"",
+                stepId:oStepId,
+                shopOrder:iOrder,
+
+                sfc: thesfc,
+                routing:r,
+                routingVersion:rVersion,
+                routingType:rType,
+                standardValue:"",
+                time:"",
+                numberOfOperators:nofops
+                
+
+            };
+            var that = this;
+    
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - Direct labor sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected inDirect Labor API : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+
+        },
+
+        mergeSfcsAPI : async function (){
+
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/merge?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+          
+            var ssfcParameters = {
+                plant:sfcplant,
+                parentSfc:"",
+                sourceSfcs:"",
+                mergeAcrossOperations:true,
+                copyWorkInstructionData:true,
+                copyComponentTraceabilityData:true,
+                copyNonConformanceData:true,
+                copyBuyoffData:true,
+                copyDataCollectionData:true,
+                copyActivityLogData:true
+                
+            };
+            var that = this;
+    
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - Merge Sfcs sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in Merge SFC  API : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+        },
+
+        onSfcDone: async function () {
+
+            //Merge Sfcs
+
+            //Non Conformance for the single sfc from the Merge
+
+
+            //Disposition the single Sfc
+
+            //Start and Complete the Sfc
+
+            
+
+        },
+
+        logNonConformanceAPI : async function () {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/nonconformance/v1/log";
+            var sfcplant = this.getPodController().getUserPlant();
+          
+            var ssfcParameters = {
+                code:"",
+                plant:sfcplant,
+                sfcs:[],
+
+               
+                
+            };
+            var that = this;
+    
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - Non conformacnce sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in  NonConfrmance log   API : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+
+        },
+
+
+        dispositionNCAPI: async function () {
+
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/nonconformance/v1/sfcs/disposition";
+            var sfcplant = this.getPodController().getUserPlant();
+          
+            var ssfcParameters = {
+                plant:sfcplant,
+                sfcs:[]
+               
+                
+            };
+            var that = this;
+    
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - Disposition Sfcs sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in Disposition SFC  API : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+
+        },
+
+
+
+
+
+        onSplitSfc:async function (evt){
+            
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("Please make a selection first");
+                return;
+            }
+
+            this.openSplitSfcDialog();
+            
+
+
+        },
+
+        onRelabelSfc: async function (evt){
+           
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("Please make a selection first");
+                return;
+            }
+            this.openRelabelSfcDialog();
+
+        },
+
+        openSplitSfcDialog:  function () {
+            //we need order , material, and scanned entry
+            //marker20
+            var eOrder = this.getView().getModel().getProperty("/orderselect");
+            var eMaterial=this.getView().getModel().getProperty("/material");
+            var selection = this.getPodSelectionModel().getSelections();
+            var thesfc = selection[0].getSfc().getSfc();
+            
+            var eMaterialeOrder=eMaterial+eOrder;
+            var that=this;
+            var oSplitSfcInput = new sap.m.Input({
+                change: function (oEvent) {
+                    // Get the new value
+                    var newValue = oEvent.getParameter("value");
+                    var splitnewSfc=eMaterialeOrder+newValue;
+
+                    // Set the value of the New Sfc label
+                    oNewSfcValueLabel.setText(splitnewSfc);
+                    var res=that.splitSfcAPI(thesfc,splitnewSfc);
+                    oDialog.close();
+                }
+            });
+            var oSfcValueLabel = new sap.m.Label(/*{ design: sap.m.LabelDesign.Bold }*/);
+            var oAvailableQuantityValueLabel = new sap.m.Label({ design: sap.m.LabelDesign.Bold });
+            var oQuantityToSplitInput = new sap.m.Input();
+            var oNewSfcValueLabel = new sap.m.Label({ design: sap.m.LabelDesign.Bold });
+
+            var oDialog = new sap.m.Dialog({
+                title: 'Split Sfc',
+                content: [
+                    new sap.m.VBox({
+                        items: [
+                            new sap.m.Label({ text: 'split sfc', design: sap.m.LabelDesign.Bold }),
+                            oSplitSfcInput,
+                            new sap.m.Label({ text: 'SFC', design: sap.m.LabelDesign.Bold }),
+                            oSfcValueLabel,
+                            new sap.m.Label({ text: 'available Quantity', design: sap.m.LabelDesign.Bold }),
+                            oAvailableQuantityValueLabel,
+                            new sap.m.Label({ text: 'quantity to split', design: sap.m.LabelDesign.Bold }),
+                            oQuantityToSplitInput,
+                            new sap.m.Label({ text: 'New Sfc', design: sap.m.LabelDesign.Bold }),
+                            oNewSfcValueLabel
+                        ]
+                    }).addStyleClass("sapUiSmallMargin")
+                ],
+                beginButton: new sap.m.Button({
+                    text: 'Split',
+                    type: sap.m.ButtonType.Emphasized,
+                    press: function () {
+                        // Handle the Split button press here
+                        var splitSfcValue = oSplitSfcInput.getValue();
+                        var quantityToSplitValue = oQuantityToSplitInput.getValue();
+
+                        console.log('Split Sfc Value:', splitSfcValue);
+                        console.log('Quantity to Split Value:', quantityToSplitValue);
+
+                        oDialog.close();
+                        that.showSuccessMessage("split done",true);
+                    }
+                }),
+                endButton: new sap.m.Button({
+                    text: 'Cancel',
+                    press: function () {
+                        oDialog.close();
+                    }
+                }),
+                afterClose: function () {
+                    oDialog.destroy();
+                }
+            });
+
+            // Set the values of the labels and input fields here
+            oSfcValueLabel.setText(thesfc);
+            oAvailableQuantityValueLabel.setText("10");
+            oQuantityToSplitInput.setValue("1");
+            oNewSfcValueLabel.setText("....");
+
+            oDialog.open();
+
+        },
+
+        openRelabelSfcDialog: function () {
+
+            var eOrder = this.getView().getModel().getProperty("/orderselect");
+            var eMaterial=this.getView().getModel().getProperty("/material");
+            var selection = this.getPodSelectionModel().getSelections();
+            var thesfc = selection[0].getSfc().getSfc();
+            var eMaterialeOrder=eMaterial+eOrder;
+            var that=this;
+            
+                                                
+
+            var oOriginalSfcLabel = new sap.m.Label({ text: 'Original SFC', design: sap.m.LabelDesign.Bold });
+            var oNewSfcLabel = new sap.m.Label({ text: 'New SFC', design: sap.m.LabelDesign.Bold });
+            var oAncdeLabel = new sap.m.Label({ text: thesfc, design: sap.m.LabelDesign.Bold });
+            var oNewSfcInput = new sap.m.Input({
+                change: function (oEvent) {
+                    // Get the new value
+                    var newValue = oEvent.getParameter("value");
+                    var relabelnewSfc=eMaterialeOrder+newValue;
+                    var res=that.relabelSfcAPI(thesfc,relabelnewSfc);
+
+                    // Handle the new value here
+                    console.log('New SFC Value:', newValue);
+                    oDialog.close();
+                    that.showSuccessMessage("relabel done",true);
+                }
+            });
+
+            var oDialog = new sap.m.Dialog({
+                title: 'SFC Relabel',
+                content: [
+                    new sap.m.FlexBox({
+                        justifyContent: "SpaceBetween",
+                        items: [
+                            oOriginalSfcLabel,
+                            oNewSfcLabel
+                        ]
+                    }).addStyleClass("sapUiSmallMargin"),
+                    new sap.m.FlexBox({
+                        justifyContent: "SpaceBetween",
+                        items: [
+                            oAncdeLabel,
+                            oNewSfcInput
+                        ]
+                    }).addStyleClass("sapUiSmallMargin")
+                ],
+                beginButton: new sap.m.Button({
+                    text: 'Relabel',
+                    type: sap.m.ButtonType.Emphasized,
+                    press: function () {
+                        // Handle the Relabel button press here
+                        var newSfcValue = oNewSfcInput.getValue();
+
+                        console.log('New SFC Value:', newSfcValue);
+
+                        oDialog.close();
+                    }
+                }),
+                endButton: new sap.m.Button({
+                    text: 'Cancel',
+                    press: function () {
+                        oDialog.close();
+                    }
+                }),
+                afterClose: function () {
+                    oDialog.destroy();
+                }
+            });
+
+            oDialog.open();
+        },
+
+        splitSfcAPI: async function ( xcsfc,nssfc) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/split?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+            var csfc=xcsfc; //sfc to split
+            
+
+        //TODO find the quantity
+            var nsfc = {
+
+                sfc: nssfc, //new sfc
+                defaultBatchid: "",
+                quantity: "1",
+            }
+            
+            var ssfcParameters = {
+                plant: sfcplant,
+                sfc: csfc,
+                newSfcs:[nsfc]    
+            };
+            var that = this;
+            
+
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - sfc start sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in splitSFC : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            
+        },
+
+        relabelSfcAPI: async function ( xcsfc,nssfc) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/relabel?async=false";
+           
+            var sfcplant = this.getPodController().getUserPlant();
+            var csfc=xcsfc; //sfc to split
+
+       
+        
+            
+            var ssfcParameters = {
+                plant: sfcplant,
+                sfc: csfc,
+                newSfc:nssfc
+            };
+            var that = this;
+            
+
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+
+                            oLogger.info ( "oError.error.message is= ",oError.error.message);
+                            oLogger.info("Errors - sfc start sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage("Error detected in relabelSFC : "+oError.error.message);                          
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            
         },
 
         /**
@@ -2322,7 +3036,7 @@ sap.ui.define([
             var sfcstocomplete = await this.filterActiveSFCS(allSfcs);
             var clength= sfcstocomplete.length;
             if (clength ===0 ){
-                this.showErrorMessage("Nothing to complete!");
+                this.showErrorMessage("SFC Not Active");
                 this.resetButtonsWrkfl();
 
                 return;
@@ -2461,8 +3175,14 @@ sap.ui.define([
             var oStartOrderButton = this.getView().byId("OrderStartType");
             var oCompleteButton = this.getView().byId("CompletComp");
             var oSignoffButton = this.getView().byId("");
+            var splitButton=this.getView().byId("SplitSfcid");
+            var relabelButton=this.getView().byId("RelableSfcid");
+
+
             oCompleteButton.setVisible(oConfiguration.completeButtonVisible);
             oValidationButton.setVisible(oConfiguration.validateButtonVisible);
+            splitButton.setVisible(oConfiguration.splitSFCVisible);
+            relabelButton.setVisible(onSignOffComponents.relabelSFCVisible);
 
 
             oLogger.info("config: " + JSON.stringify(oConfiguration));  
@@ -2581,7 +3301,8 @@ sap.ui.define([
                 validatedComponents:[],
                 validationStatuses:[],
                 uniqueCurrentSelection:uniqueCSel,
-                curSelections:[]
+                curSelections:[],
+                numberOfOperators:0
             };
             if (Object.keys(oModelData.uniqueCurrentSelection).length !==0){
                 oModelData.orderselect = oModelData.uniqueCurrentSelection.shopOrder;

@@ -12,5 +12,9 @@
     color:white !important;
 }
 
+.required {
+    color: red;
+}
+
 
 
