@@ -60,18 +60,19 @@
                             <Label id="OrderValueLabel" text="{/orderselect}" class="sapUiTinyMarginEnd"/>
                             <Button  id="OrderStartType" text="Start Order" type="Emphasized" visible="false" press=".onStartOrderEnhanced" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
                             <Button id="TestFunction" text="Start Order *" visible="true" type="Emphasized"  press=".onTestFunction" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
-                            <Button id="SSFCQuantityId" text="Start Order/Serialize" visible="true" type="Emphasized"  press=".onStartOrderSerialize" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
+                            <Button id="SSFCQuantityId" text="Start Order/Split" visible="true" type="Emphasized"  press=".onStartOrderSerialize" icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
                             
 
                             <Button id="ValidateCompType" text="Validate Components" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onValidateComponentsEn" class="sapUiTinyMarginEnd"/>
                             <Button id="CompletComp" text="Complete Order" type="Emphasized" visible="true" icon="sap-icon://popup-window" press=".onCompleteOrderSfcs" class="sapUiTinyMarginEnd"/>
-                            <Button id="SfcDoneId"  text="Sfc Done" type="Emphasized" visible="true"  icon="sap-icon://popup-window" press=".onSfcDone"  class="sapUiTinyMarginEnd"/>
-                            <Button id="SplitSfcid"  text="Split" type="Emphasized" visible="true"  icon="sap-icon://popup-window" press=".onSplitSfc"  class="sapUiTinyMarginEnd"/>
+                            <Button id="SfcDoneId"  text="SFC Done" type="Emphasized" visible="true"  icon="sap-icon://popup-window" press=".onSfcDone"  class="sapUiTinyMarginEnd"/>
+                            <Button id="SplitSfcid"  text="Split/Relabel" type="Emphasized" visible="true"  icon="sap-icon://popup-window" press=".onSplitSfc"  class="sapUiTinyMarginEnd"/>
                              <Button id="RelableSfcid"  text="Relabel" type="Emphasized" visible="true"  icon="sap-icon://popup-window" press=".onRelabelSfc"  class="sapUiTinyMarginEnd"/>
 
-                            <Button id="SignoffComp" text="Sign Off Components" visible="false"  press=".onSignOffComponents" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="SignoffComp" text="Signoff" visible="true"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestFunctionx" text="AltSO" visible="false"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
-                            <Button id="TestFlow" text="Signoff" visible="true"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="DisregardOrderId" text="Disregard Order" visible="false"  press="onOrderDisregard" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="TestFlow" text="Signoff***" visible="false"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
                             <Label id="MessageAreaId" text="Message Area" class="sapUiTinyMarginEnd"/>
 
                         </items>

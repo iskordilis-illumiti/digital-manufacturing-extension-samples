@@ -16,36 +16,45 @@ sap.ui.define([
         addPropertyEditorContent: function (oPropertyFormContainer) {
             console.log('Property Editor addPropertyEditorContent');
             var oData = this.getPropertyData();
-            this.addSwitch(oPropertyFormContainer, "notificationsEnabled", oData);
-            this.addSwitch(oPropertyFormContainer, "closeButtonVisible", oData);
-            this.addSwitch(oPropertyFormContainer,"validateComponentsVisible",oData);
-            this.addSwitch(oPropertyFormContainer,"executeStartOrderOnlyVisible",oData);
+            //this.addSwitch(oPropertyFormContainer, "notificationsEnabled", oData);
+            //this.addSwitch(oPropertyFormContainer, "closeButtonVisible", oData);
+            //this.addSwitch(oPropertyFormContainer,"validateComponentsVisible",oData);
+
+            this.addSwitch(oPropertyFormContainer,"StartOrderVisible",oData);
+            
             this.addSwitch(oPropertyFormContainer,"executefullFlowVisible",oData);
             this.addSwitch(oPropertyFormContainer,"validateButtonVisible",oData);
             this.addSwitch(oPropertyFormContainer,"completeButtonVisible",oData);
             this.addSwitch(oPropertyFormContainer,"signoffButtonVisible",oData);
-            this.addSwitch(oPropertyFormContainer,"startOrderVisible",oData);
+           // this.addSwitch(oPropertyFormContainer,"startOrderVisible",oData);
             this.addSwitch(oPropertyFormContainer,"startOrderSerializeVisible",oData);
             this.addSwitch(oPropertyFormContainer,"splitSFCVisible",oData);
             this.addSwitch(oPropertyFormContainer,"relabelSFCVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"checkPrt",oData);
+            this.addSwitch(oPropertyFormContainer,"sfcDoneVisible",oData);
+            this.addSwitch(oPropertyFormContainer,"laborEnabled",oData);
+
             
             
         },
 
         getDefaultPropertyData: function () {
             var oData = {
-                "notificationsEnabled": true,
-                "closeButtonVisible": false,
-                "validateComponentsVisible": false,
-                "executeStartOrderOnlyVisible": false,
+                //"notificationsEnabled": true,
+                //"closeButtonVisible": false,
+                //"validateComponentsVisible": false,
+                "StartOrderVisible": true,
                 "executefullFlowVisible": true,
                 "validateButtonVisible": true,
                 "completeButtonVisible": true,
                 "signoffButtonVisible": true,
-                "startOrderVisible" : true,
+                //"startOrderVisible" : true,
                 "startOrderSerializeVisible":true,
                 "splitSFCVisible": true,
-                "relabelSFCVisible": true
+                "relabelSFCVisible": true,
+                "checkPrt":true,
+                "sfcDoneVisible":true,
+                "laborEnabled":false
 
 
             };
