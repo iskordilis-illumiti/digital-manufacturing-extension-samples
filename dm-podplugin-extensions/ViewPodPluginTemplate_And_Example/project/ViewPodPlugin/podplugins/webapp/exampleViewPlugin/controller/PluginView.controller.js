@@ -10,7 +10,7 @@ sap.ui.define([
     // Then import into this main module for the plugin
 
 
-    var oLogger = Log.getLogger("Lutron View Plugin", Log.Level.INFO);
+    var oLogger = Log.getLogger("View Plugin", Log.Level.INFO);
     //------------------------------------------------------------------------
     
     //  add a wrklstcurrentsel to receive the selected row on the worklist 
@@ -51,26 +51,10 @@ sap.ui.define([
         _glbSet: function (sobj) { this._sfcGoodToStart = sobj },
     };
 
-    //Simple state machine nodes for the Lutron plugin flow
-    const LPNS = -1;
-    const INIT_LP = 0;
-    const START_ORDER_ON = 1;
-    const START_ORDER_WORKING = 2;
-    const START_ORDER_DONE = 3;
-    const VALIDATE_COMP_ON = 4;
-    const VALIDATE_COMP_DONE = 5;
-    const COMPLETE_ORDER_ON = 6;
-    const COMPLETE_ORDER_WORKING = 7;
-    const COMPLETE_ORDER_DONE = 8;
+    
     const COMPONENT_VALIDATION_SUCCESS = 1;
 
 
-    //HIDE CODE  for debug    
-    const EXECUTE_CODE = true;
-    const ENABLE_NTFCMSG = false;
-    //USE ENABLE_PROMISE to use promise.all to resolve all promises that
-    // are called in a loop as in case of getting the SFC status.
-    const ENABLE_PROMISE_ALL = true;
     // start with 50 increase inrementally after tests to test stability.
     const SFCS_CHUNK = 50;  //dont make this greater than 499 for calling sfc/sfcs/start - move to POD Designer.
     const SFCS_NEW = 401;
@@ -286,45 +270,7 @@ sap.ui.define([
             return (typeof obj === 'undefined');
         },
 
-        /**
-         * simpleStartSfcsPost
-         * @param {
-         * } sOperation 
-         * @param {*} sPlant 
-         * @param {*} sResource 
-         * @param {*} sSfcs 
-         * @returns 
-         */
-
-        simpleStartSfcsPost: function (sOperation, sPlant, sResource, sSfcs) {
-            //marker
-            if (!this.bCheckSelectionModel()) {
-                this.showErrorMessage("Can not start - No selection");
-                return;
-            }
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
-            var ButtonsSP = this.byId("TestFunction");
-            //skip the quantity we want to start the full quantity.
-            var ssfcParameters = {
-                plant: sPlant,
-                operation: sOperation,
-                resource: sResource,
-                sfcs: sSfcs,
-
-            };
-            var that = this;
-            this.ajaxPostRequest(
-                sUrl,
-                ssfcParameters,
-                function (oResponseData) {
-                    var p = oResponseData;
-                },
-                function (oError, sHttpErrorMessage) {
-
-                    oLogger.info("Errors - sfc start  " + sHttpErrorMessage);
-                    that.showErrorMessage(sHttpErrorMessage, true);
-                });
-        },
+        
 
         /****************************************************************
          * 
@@ -1673,7 +1619,7 @@ sap.ui.define([
 
                 oLogger.info("oError.error.message is= ", oError.message);
                 //oLogger.info("Errors - Merge Sfcs sHttpErrorMessage is =  " + sHttpErrorMessage);
-                that.showErrorMessage("Error detected in Merge SFC  API : " + oError.message);
+                //that.showErrorMessage("Error detected in Merge SFC  API : " + oError.message);
                 throw oError;
 
 
@@ -1691,11 +1637,8 @@ sap.ui.define([
                 this.showErrorMessage("Please make a Selection first.");
                 return;
             }
-           
-
+        
            try {
-          
-
             let res= await this.sfcDone();
 
            }catch(error){
@@ -1714,7 +1657,64 @@ sap.ui.define([
                 this.showErrorMessage("Please  select a single SFC to Merge with all other SFCs in the Order");
                 return;
             }
-            
+
+            try {
+                var oWorkListData = await this.getWorklistDataSelectedOrder();
+                var thesfc = selection[0].getSfc().getSfc();
+
+            } catch (error) {
+                oLogger.info(`getWorklistDataSelectedOrder: Error : ${error}`);
+                throw error;
+            }
+            // get all Sfcs from the result of the getWorklistDataSelectedOrder;
+            var allSfcs = oWorkListData[0].orderSfcs;
+            try {
+                var onHoldSFCSarr = await this.filterSFCsonHold(allSfcs);
+            } catch (error) {
+                throw error;
+            }
+
+            //if we found sfcs on hold show an error message and return
+            if (onHoldSFCSarr.length >0 ){
+                this.showErrorMessage("There are SFCs on Hold in the Order cannot Merge.");
+                return;
+            }
+            var sfcplant = this.getPodController().getUserPlant();
+
+            //Now we can merge the sfcs-after we filter for active sfcs
+            // Make the selected SFC the parent SFC and all other sfcs the sources
+            //after you filter for active sfcs
+            try {
+                var activesfcs=await this.filterActiveSFCsAlt(allSfcs);
+
+            }catch(error){
+                throw error;
+            }
+            console.log(activesfcs);
+
+            try {
+                
+
+                let  thesfcexcluded=activesfcs.filter(item => item !== thesfc);
+                var responseData=await this.mergeSfcsAPI(thesfc,thesfcexcluded);
+
+            }catch (error){
+                throw error;
+            }
+
+             //log Non Conformance from the resulting Merged SFC
+            // the SFC to log the non conformance  is provided by the responseData
+            // returned by the mergeSFCsAPI above 
+            // pass the parent sfc used in the Merge sfc
+
+            try {
+                var sfcarr = [];
+                sfcarr[0] = thesfc;
+                var responseNc = await this.logNonConformanceAPI(sfcarr, sfcplant);
+
+            } catch (error) {
+                throw error;
+            }           
 
         }, //end SfcDone
 
@@ -2251,8 +2251,7 @@ sap.ui.define([
             for (let i = 0; i < vlength; i += SFCS_CHUNK) {
 
 
-                let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);
-                //var chunckStartd = this.simpleStartSfcsPost( sfcOperation,sfcplant,sfcResource,startSFCChunk);
+                let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);        
 
                 /** API Call to start all SFCS************** *********/
 
@@ -2892,31 +2891,13 @@ sap.ui.define([
             try {
                 //Do we need to test here for valid state with selection?
                 var oAlt = await this.startOrderAltEnhanced(evt);
-                //this.showErrorMessage("ready?");
-                //var thelist=await this.getWorklistDataSelectedOrder();
-                //var thesfcs=await this.getSfcsInWork();
-                //oLogger.info(oAlt);
+
             } catch (error) {
                 var sErr = `Error in StartOrderAltEnhanced : ${JSON.stringify(error)}`;
-                //oLogger.info(sErr);
-                //this.showErrorMessage(sErr);
+               
             }
 
-            if (0) {
-                //this.showSuccessMessage("OnTestButton ");
-                var eOrder = this.getView().byId("OrderValueLabel").getText();
-                this.orchestrateComponentVetting(eOrder, evt);
-
-
-                bchk = this.bCheckSelectionModel();
-                console.log(bchk);
-                let t = this.getDynamicPageTitle();
-                let p = this.getPluginName();
-                oLogger.info("pluign name , page title " + t + " " + p);
-                var oconfig = this.getConfiguration();
-                oLogger.info("Configuration = " + oconfig);
-            }
-
+     
         },
 
         signOffAllSfcsOrderOperation: async function (eOrder, tevt) {
@@ -3121,60 +3102,6 @@ sap.ui.define([
             oLogger.info("start all sfcsworkflow clicked");
         },
 
-
-        // [Validate component IS]
-        // TODO not used any more remove eventually
-        //------------------ Start Validate Components --------
-
-        onValidateComponents: function (evt) {
-            if (evt) {
-                oLogger.info("onValidateComponents: " + evt);
-            } else {
-                oLogger.info("onValidateComponents -called internally");
-
-            }
-
-            var fakemodel = {
-                components: [
-                    { component: "Component1", description: "Description1", validated: "Y" },
-                    { component: "Component2", description: "Description2", validated: "N" },
-                    { component: "Component3", description: "Description3", validated: "Y" }
-                ]
-            };
-            this.getView().getModel().setProperty("/components", fakemodel.components);
-            //component API Endpoint (from Asssembly)
-            var sUrl = this.getPublicApiRestDataSourceUri() + "/assembly/v1/plannedComponents";
-            //set the required params we plant and sfc
-            var selection = this.getPodSelectionModel().getSelections();
-            var thesfc = selection[0].getSfc().getSfc();
-            var params = {
-                plant: this.getPodController().getUserPlant(),
-                sfc: thesfc
-            }
-            var that = this;
-            this.ajaxGetRequest(sUrl, params, function (oResponseData) {
-                that.ComponentAPISucsess(oResponseData);
-            }, function (Error, sHttpErrorMessage) {
-                that.ComponentAPIError(Error, sHttpErrorMessage);
-            });
-
-            //TODO handle failures gracefully
-            //illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation"
-            //^ -------- app ----------------------------^--view+^ fragment without fragment.xml
-            // Assumes that fragment is in the same folder as the plugin view
-
-            if (!this._oDialog) {
-                this.loadFragment({
-                    name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation"
-                }).then(function (oDialog) {
-                    this._oDialog = oDialog;
-                    this.getView().addDependent(this._oDialog);
-                    this._oDialog.open();
-                }.bind(this));
-            } else {
-                this._oDialog.open();
-            } //--
-        },
 
         /**
          * resetButtonsWrkfl 
@@ -3452,77 +3379,6 @@ sap.ui.define([
             this.showSuccessMessage("Validate button pressed");
 
         },
-
-        /**
-         * TODO not used remove eventually
-         * @param {*} state 
-         * @returns 
-         */
-        stateMachineLutronProcess: function (state) {
-
-
-            var currentLPState = state ? state : LPNS;
-
-            //get all the button id's from the view
-
-            var ButtonSO = this.byId("OrderStartType");
-            var ButtonVC = this.byId("ValidateCompType");
-            var ButtonCO = this.byId("CompletComp");
-            var ButtonSOFF = this.byId("SignoffComp");
-            var buttonSoText = ButtonSO.getText();
-            var ButtonVcText = ButtonVC.getText();
-            var ButtonCoText = ButtonCO.getText();
-
-            switch (state) {
-                case INIT_LP:
-                    //all buttons are disabled
-                    ButtonSO.setEnabled(false);
-                    ButtonVC.setEnabled(false);
-                    ButtonCO.setEnabled(false);
-                    ButtonSOFF.setEnabled(false);
-                    currentLPState = INIT_LP;
-                    break;
-
-                case START_ORDER_ON:
-                    ButtonSO.setEnabled(true);
-                    currentLPState = START_ORDER_ON;
-                    break;
-
-                case START_ORDER_WORKING:
-                    ButtonSO.setEnabled(false);
-                    ButtonSO.setText("Working ......");
-                    currentLPState = START_ORDER_WORKING;
-                    break;
-                case START_ORDER_DONE:
-                    ButtonSO.setEnabled(true);
-                    ButtonSO.setText("Start Order");
-                    currentLPState = START_ORDER_DONE;
-                    //ButtonVC.setText("Validate Component working ...");
-                    ButtonVC.setEnabled(true);
-
-
-
-                    break;
-                case VALIDATE_COMP_ON:
-                    break;
-                case VALIDATE_COMP_DONE:
-                    break;
-                case COMPLETE_ORDER_ON:
-                    break;
-                case COMPLETE_ORDER_WORKING:
-                    break;
-                case COMPLETE_ORDER_DONE:
-                    break;
-
-                default:
-                    console.log("Unknown state");
-
-
-                    return currentLPState;
-
-            }
-        },
-
 
 
         /**
