@@ -1580,7 +1580,12 @@ sap.ui.define([
             return oResponseData;
 
         },
-
+        /**
+         * mergeSfcsAPI
+         * @param {parent sfc } iParentSfc 
+         * @param {source sfcs to merge} iSourceSfc 
+         * @returns 
+         */
         mergeSfcsAPI: async function (iParentSfc, iSourceSfc) {
 
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/merge?async=false";
@@ -1590,7 +1595,7 @@ sap.ui.define([
                 plant: sfcplant,
                 parentSfc: iParentSfc,
                 sourceSfcs: iSourceSfc,
-                mergeAcrossOperations: true,
+                mergeAcrossOperations: false,
                 copyWorkInstructionData: true,
                 copyComponentTraceabilityData: true,
                 copyNonConformanceData: true,
@@ -1618,10 +1623,7 @@ sap.ui.define([
             } catch (oError) {
 
                 oLogger.info("oError.error.message is= ", oError.message);
-                //oLogger.info("Errors - Merge Sfcs sHttpErrorMessage is =  " + sHttpErrorMessage);
-                //that.showErrorMessage("Error detected in Merge SFC  API : " + oError.message);
                 throw oError;
-
 
             }
         },
