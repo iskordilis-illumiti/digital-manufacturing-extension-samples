@@ -27,7 +27,7 @@ sap.ui.define([
     //current selection might contain more than 1 selection
     var wrklstcurrentsel = {};
 
-    //current operation last selected ?aaa
+    //current operation last selected
     var wrklstsopersel = "notset";
 
     //not used even though is in the model
@@ -1014,6 +1014,29 @@ sap.ui.define([
         },
 
         /**
+         * 
+         * @param {} componentstovet 
+         * @returns 
+         */
+        vetComponentsToValidate: async function (componentstovet) {
+            var vettedComponents = [];
+            var promises = componentstovet.map(item => {
+                return this.bGetVettedComponent(item)
+                    .then(isVetted => {
+                        if (isVetted) {
+                            vettedComponents.push(item);
+                        }
+                    });
+            });
+            try {
+                await Promise.all(promises);
+                return vettedComponents;
+            } catch (error) {
+                console.log(error);
+            }
+        },
+
+        /**
          * bGetVetttedComponent
          * @param {get} component 
          * @returns true if component will be validated false otherwise
@@ -1052,8 +1075,81 @@ sap.ui.define([
 
                 var zname = characteristicDetails[i].name;
 
-
                 if (zname === "Z_MATERIALVALIDATION") {
+                    var zId = characteristicDetails[i].charcInternalId;
+                    var classInternalId = zId;
+                    var classificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                    oStatus.bFoundYes=false;
+                    for (let header of classificationAssignmentHeaders) {
+                        if (header.assignmentCharacteristicValues) {
+                            let match = header.assignmentCharacteristicValues.find(item => item.charcInternalId === classInternalId);
+                            if (match && match.charcValue === "YES") {
+                                oStatus.bFoundYes = true;
+                                break;
+                                //return true; // Match found with "YES", no need to check further (continue is correct here we need to go through all the characteristics)
+                            }
+                        }
+                    }
+                    // If we reach here, it means no match was found with "YES"
+                    if (!oStatus.bFoundYes){
+                    
+                    return false; // No matching "YES" found in any header
+                    }
+                }
+                if (zname === "Z_MATERIALVALIDATION_PLANT") {
+                    var classInternalId = characteristicDetails[i].charcInternalId;
+                    var classificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                    var sCurrentPlant = this.getPodController().getUserPlant();
+                    var foundPlantMatch = false;
+                
+                    for (let header of classificationAssignmentHeaders) {
+                        if (header.assignmentCharacteristicValues) {
+                            let match = header.assignmentCharacteristicValues.find(item => item.charcInternalId === classInternalId);
+                            if (match && match.charcValue.includes(sCurrentPlant)) {
+                                oStatus.bFoundPartsExclusion = true;
+                                foundPlantMatch = true;
+                                break; // Found a matching plant, no need to check further
+                            }
+                        }
+                    }
+                
+                    if (!foundPlantMatch) {
+                        oStatus.bFoundPartsExclusion = false;
+                        // Continue to the next iteration if needed
+                        continue;
+                    } else {
+                        return false; // Plant match found, exit with false
+                    }
+                }
+                if (zname === "Z_MATERIALVALIDATION_RESOURCE") {
+                    var classInternalId = characteristicDetails[i].charcInternalId;
+                    var classificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                    var currentResource = this.getPodSelectionModel().getResource().getResource();
+                    var foundResourceMatch = false;
+                
+                    for (let header of classificationAssignmentHeaders) {
+                        if (header.assignmentCharacteristicValues) {
+                            let match = header.assignmentCharacteristicValues.find(item => item.charcInternalId === classInternalId);
+                            if (match && match.charcValue.includes(currentResource)) {
+                                oStatus.bFoundResourceExclusion = true;
+                                foundResourceMatch = true;
+                                break; // Found a matching resource, no need to check further
+                            }
+                        }
+                    }
+                
+                    if (!foundResourceMatch) {
+                        oStatus.bFoundResourceExclusion = false;
+                        // Continue to the next iteration if needed
+                        continue;
+                    } else {
+                        return false; // Resource match found, exit with false
+                    }
+                }
+
+if (0){
+                if (zname === "Z_MATERIALVALIDATION") {
+            
                     //TODO
                     //put some sanity checks in here to verify the properties exist.
                     var zId = characteristicDetails[i].charcInternalId;
@@ -1076,13 +1172,15 @@ sap.ui.define([
                         oStatus.bFoundYes = true;
                         continue;
                     }
+                }
 
 
 
 
 
 
-                } //Z_MATERIAL_VALIDATION Check
+
+ //Z_MATERIAL_VALIDATION Check
                 // work with the other cases
                 if (zname === "Z_MATERIALVALIDATION_PLANT") {
                     //TODO for debug , remove after verification
@@ -1115,6 +1213,7 @@ sap.ui.define([
                     }
 
                 } //Z_MATERIALVALIDATION_PLANT
+        
 
                 if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
 
@@ -1142,6 +1241,9 @@ sap.ui.define([
                     }
 
                 } //Z_MATERIALVALIDATION_RESOURCE
+        }
+
+
             } //for
             //At this point we can say that MATERIAL_VALIDATION is YES because if NO
             // we have returned with false earlier in the loop 
@@ -1561,23 +1663,27 @@ sap.ui.define([
 
             };
             var that = this;
+            try {
 
-            var oResponseData = await new Promise((resolve, reject) => {
-                this.ajaxPostRequest(
-                    sUrl,
-                    ssfcParameters,
-                    function (oResponseData) {
-                        resolve(oResponseData);
-                    },
-                    function (oError, sHttpErrorMessage) {
+                    var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
 
-                        // oLogger.info("oError.error.message is= ", oError.error.message);
-                        oLogger.info("Errors - Direct labor sHttpErrorMessage is =  " + sHttpErrorMessage);
-                        that.showErrorMessage(`Error detected inDirect Labor API : ${sHttpErrorMessage}`);
-                        reject(oError);
-                    });
-            });
-            return oResponseData;
+                            // oLogger.info("oError.error.message is= ", oError.error.message);
+                            oLogger.info("Errors - Direct labor sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            that.showErrorMessage(`Error detected inDirect Labor API : ${sHttpErrorMessage}`);
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            } catch (oError) {
+                throw oError;
+            }
 
         },
         /**
@@ -1684,8 +1790,9 @@ sap.ui.define([
             var sfcplant = this.getPodController().getUserPlant();
 
             //Now we can merge the sfcs-after we filter for active sfcs
+            // signoff the active sfcs 
             // Make the selected SFC the parent SFC and all other sfcs the sources
-            //after you filter for active sfcs
+            //after you filter for active sfcs and signoff
             try {
                 var activesfcs=await this.filterActiveSFCsAlt(allSfcs);
 
@@ -1693,6 +1800,20 @@ sap.ui.define([
                 throw error;
             }
             console.log(activesfcs);
+
+            //signOff all the active sfcs 
+            // thesfc is the selected sfc
+            // activesfc is all the sfcs
+            // we also need to check if the selected sfc is in queue
+            try {
+                 var inq=this.signOffSfcs()
+
+            }catch (oError){
+                throw oError;
+            }
+
+
+
 
             try {
                 
@@ -2901,6 +3022,13 @@ sap.ui.define([
 
      
         },
+        
+        /**
+         * signOffAllSfcsOrderOperation
+         * @param {*} eOrder 
+         * @param {*} tevt 
+         * @returns 
+         */
 
         signOffAllSfcsOrderOperation: async function (eOrder, tevt) {
             //marker5
