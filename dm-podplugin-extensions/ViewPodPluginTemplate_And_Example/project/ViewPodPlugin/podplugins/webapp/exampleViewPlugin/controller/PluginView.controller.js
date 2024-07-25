@@ -2,9 +2,10 @@
 sap.ui.define([
     "sap/ui/model/json/JSONModel",
     "sap/ui/core/Fragment",
+    "sap/m/MessageBox",
     "sap/dm/dme/podfoundation/controller/PluginViewController",
     "sap/base/Log"
-], function (JSONModel, Fragment, PluginViewController, Log) {
+], function (JSONModel, Fragment, MessageBox, PluginViewController, Log) {
     "use strict";
     //TODO Break this into multiple modules with well defined dependencies
     // Then import into this main module for the plugin
@@ -12,7 +13,7 @@ sap.ui.define([
 
     var oLogger = Log.getLogger("View Plugin", Log.Level.INFO);
     //------------------------------------------------------------------------
-    
+
     //  add a wrklstcurrentsel to receive the selected row on the worklist 
     // (this is includes Operation that is missing from the selectionModel for some reason)
     //  this will be global var in this POD context
@@ -34,7 +35,7 @@ sap.ui.define([
     //needs to be removed.
     var uniqueCSel = {};
 
-    //unique single last selection from the user 
+    //unique single last selection from the user    
     //this needs special consideration when user de-selects
     var wrklistuniquesel = {};
 
@@ -51,7 +52,7 @@ sap.ui.define([
         _glbSet: function (sobj) { this._sfcGoodToStart = sobj },
     };
 
-    
+
     const COMPONENT_VALIDATION_SUCCESS = 1;
 
 
@@ -98,7 +99,8 @@ sap.ui.define([
             var oValidationButton = this.getView().byId("ValidateCompType");
             var oStartOrderButton = this.getView().byId("OrderStartType");
             var oCompleteButton = this.getView().byId("CompletComp");
-            var oSignoffButton = this.getView().byId("");
+            var oSignoffButton = this.getView().byId("SignoffComp");
+            var oMessageArea = this.getView().byId("MessageAreaId");
 
             oLogger.info("onInit config is:" + oConfig);
 
@@ -270,13 +272,133 @@ sap.ui.define([
             return (typeof obj === 'undefined');
         },
 
-        
+
 
         /****************************************************************
          * 
          *                  APIs DM and Derivatives
+         *                  These are in the context of the POD and POD selection Model
+         * 
          *
          *****************************************************************/
+
+
+        /**
+         * Call a PPD from the custom plugin 
+         * In Development ...
+         * Marker113
+         * 
+         */
+
+        callAPPD: async function (params,nopr) {
+            var sfcplant = this.getPodController().getUserPlant();
+            var iOperation = this.getView().getModel().getProperty("/operation");
+            var iResource = this.getView().getModel().getProperty("/resource");
+            var iOrder = this.getView().getModel().getProperty("/orderselect");
+            var altWc = this.getView().getModel().getProperty("/workCenter");
+
+
+            var selection = this.getPodSelectionModel().getSelections();
+            var thesfc = selection[0].getSfc().getSfc();
+            var iRouting = selection[0].sfcData.routing;
+            var rType = "SHOPORDER_SPECIFIC"; //selection[0].sfcData.routingType;
+            var rVersion = selection[0].sfcData.routingVersion;
+            var workC = selection[0].sfcData.workCenter;
+            var oStepId = selection[0].sfcData.stepId;
+            var iUserId = this.getPodController().getUserId();
+
+            var ppdconfig = this.getConfiguration();
+
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/pe/api/v1/process/processDefinitions/start?key=REG_96676307-ea1f-4fda-9936-035625c5e1d1&async=false";
+            ///pe/api/v1/process/processDefinitions/start?key=REG_96676307-ea1f-4fda-9936-035625c5e1d1
+            ///pe/api/v1/process/processDefinitions/start?key=REG_96676307-ea1f-4fda-9936-035625c5e1d1
+
+            var iparams = {
+                "inOperation": iOperation,
+                "inPlant": sfcplant,
+                "inResource": iResource,
+                "inRouting": iRouting,
+                "inRoutingType": "SHOPORDER_SPECIFIC",
+                "inNumberOfOperators": 3,
+                "inRoutingVersion": rVersion,
+                "inSfc": thesfc,
+                "inOrder": iOrder,
+                //"inStartTime":"",
+                "inStepId": oStepId,
+                "inWorkCenter": workC,
+                "inUserId": iUserId,
+                "inOperationVersion": "ERP001"
+
+            }
+            try {
+
+                var ppdresult = new Promise((resolve, reject) =>{
+                    this.ajaxPostRequest(
+                        sUrl,
+                        params,
+                        function (ppdresult) {
+                            resolve(ppdresult);
+                        },
+                        function (oError, sHttpErrorMessage) {
+                            oLogger.info("call PPD Failed" + sHttpErrorMessage);
+                            reject(oError);
+                        });
+                });
+                return ppdresult;
+            } catch (oError) {
+                this.showErrorMessage("Call to PPD laborOn failed");
+                throw oError;
+            }
+        },
+
+        /**
+         *  return laborOnPPDParams;
+         * Marker222
+         * @param {*} thesfc the sfctofind all the details to create params for LaborOn PPD
+         */
+        getSFCDetailsForLaborOnPPD: async function (thesfc,iOrder) {
+            var sfcplant = this.getPodController().getUserPlant();
+            var userId=this.getPodController().getUserId();
+             var worklistData = await this.getWorklistDataSelectedOrder(iOrder);
+
+             var orderSfcs = worklistData[0].orderSfcs;
+
+             var sfcfound = orderSfcs.find( sfc => sfc.sfc == thesfc);
+             if (sfcfound){
+             var thesteps = sfcfound.steps;
+             var thefirststep=thesteps[0];
+
+             }
+             else {
+                this.showErrorMessage("Sfc not found ");
+
+             }
+
+             
+
+             var laborOnPPDParams = {
+                "inOperation": thefirststep.operation.operation,
+                "inPlant": sfcplant,
+                "inResource": thefirststep.resource,
+                "inRouting": thefirststep.stepRouting.routing,
+                "inRoutingType": thefirststep.stepRouting.type,
+                "inNumberOfOperators": 3,
+                "inRoutingVersion": thefirststep.stepRouting.version,
+                "inSfc": thesfc,
+                "inOrder": iOrder,
+                //"inStartTime":"",
+                "inStepId": thefirststep.stepId,
+                "inWorkCenter": thefirststep.plannedWorkCenter,
+                "inUserId": userId,
+                "inOperationVersion": thefirststep.operation.version
+            
+
+               
+             }
+             return laborOnPPDParams;          
+
+        },
+
 
         /**
          * prtLoadingValidation
@@ -395,6 +517,8 @@ sap.ui.define([
             } catch (error) {
                 this.showErrorMessage("An error was detected: in signOffSfcs ", true);
                 this.resetButtonsWrkfl();
+                //added check to see if it impedes to signoff button to restore to normal.
+                throw error;
             }
         },
 
@@ -439,6 +563,34 @@ sap.ui.define([
 
         },
 
+        OpenConfirmationDialog: async function (prompt) {
+            // Wrap the MessageBox in a Promise
+            const userDecision = await new Promise((resolve) => {
+                MessageBox.confirm(prompt, {
+                    actions: [MessageBox.Action.YES, MessageBox.Action.NO],
+                    onClose: function (oAction) {
+                        // Resolve the promise based on the user's action
+                        const decision = oAction === MessageBox.Action.YES;
+                        resolve(decision);
+                    }
+                });
+            });
+
+            // Use the user's decision
+            if (userDecision) {
+                // User chose "Yes"
+                console.log("User chose Yes");
+                // Further execution path for "Yes"
+            } else {
+                // User chose "No"
+                console.log("User chose No");
+                // Further execution path for "No"
+            }
+
+            return userDecision;
+        },
+
+
         /**
          * getWorklistDataSelectedOrder
          * 
@@ -456,7 +608,7 @@ sap.ui.define([
          * 
          */
 
-        getWorklistDataSelectedOrder: async function () {
+        getWorklistDataSelectedOrder: async function (iOrder) {
 
             try {
                 var oResponseData = await new Promise((resolve, reject) => {
@@ -469,6 +621,7 @@ sap.ui.define([
                     var sfcResource = this.getPodSelectionModel().getResource().getResource();
                     var oView = this.getView();
                     var oModel = oView.getModel();
+
                     var oOrder = oModel.getProperty('/orderselect');
 
                     /**
@@ -485,7 +638,7 @@ sap.ui.define([
                     sUrl = sUrl + "page.size=20";
                     sUrl = sUrl + "20&page.offset=" + 0;
                     sUrl = sUrl + "&plant=" + thePlant;
-                    sUrl = sUrl + "&operation=" + theOperation;
+                    // sUrl = sUrl + "&operation=" + theOperation;
                     sUrl = sUrl + "&resource=" + sfcResource;
                     sUrl = sUrl + "&filter.order=" + oOrder;
                     //sUrl =sUrl + "&filter.operation="+theOperation;
@@ -818,7 +971,7 @@ sap.ui.define([
                 sfcs: sSfcs
             };
             var that = this;
-
+            try {
 
             var oResponseData = await new Promise((resolve, reject) => {
                 this.ajaxPostRequest(
@@ -828,14 +981,20 @@ sap.ui.define([
                         resolve(oResponseData);
                     },
                     function (oError, sHttpErrorMessage) {
+                        var errval= oError || oError.message || sHttpErrorMessage;
 
-                        oLogger.info("oError.error.message is= ", oError.error.message);
-                        oLogger.info("Errors - sfc start sHttpErrorMessage is =  " + sHttpErrorMessage);
-                        that.showErrorMessage("Error detected in Start : " + oError.error.message);
-                        reject(oError);
+
+                        oLogger.info("oError.error.message is= ",errval);
+                       
+                        that.showErrorMessage(`Error detected in Start Order:  + ${errval}`,true);
+                        reject(errval);
                     });
             });
-            return oResponseData;
+        }catch (oError){
+            throw oError;
+
+        }
+        return oResponseData;
 
 
         },
@@ -957,6 +1116,92 @@ sap.ui.define([
             }
         },
         //** */
+
+        onValidateResource: async function (evt) {
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("Nothing selected to Validate resource");
+                return;
+            }
+
+            var sfcResource = this.getPodSelectionModel().getResource().getResource();
+            try {
+                var res = await this.getResourceV2(sfcResource);
+                if (res) {
+                    console.log(res);
+                    let rStatus = res[0].status;
+
+
+                    this.showSuccessMessage(`The resource status is: ${rStatus}`);
+                }
+
+            } catch (oError) {
+                this.showErrorMessage("failed to validate resource : API");
+            }
+
+        },
+
+
+        /**
+         * bValidateResForStart
+         * validates the resource to either be ACTIVe or PRODUCTIVE
+         * return true or false if the condition above is not true
+         * @param {*} res resource ( selected most propably )
+         * @param {*} plant T(he current plant most propably)
+         * @returns 
+         */
+        bValidateResForStart: async function (res, plant) {
+            try {
+                var resData = await this.getResourceV2(res);
+                if (resData) {
+
+                    let rStatus = resData[0].status;
+                    return (rStatus === "ENABLED" || rStatus === "PRODUCTIVE");
+                }
+                return false;
+
+            }
+
+            catch (oError) {
+
+            }
+
+
+        },
+
+
+
+        /**
+         * getResourceV2
+         * 
+         */
+        getResourceV2: async function (res) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/resource/v2/resources";
+            var iplant = this.getPodController().getUserPlant();
+            var iparams = {
+                plant: iplant,
+                resource: res
+            }
+
+            try {
+                var oResourceData = await new Promise((resolve, reject) => {
+                    this.ajaxGetRequest(
+                        sUrl,
+                        iparams,
+                        function (oResourceData) {
+                            resolve(oResourceData);
+                        }, function (oError, sHttpErrorMessage) {
+                            reject(oError);
+
+                        });
+                });
+                return oResourceData;
+
+            }
+            catch (oError) {
+                throw oError;
+            }
+        },
+
         // planned components API Endpoint (from Asssembly)
         getplannedComponents: async function () {
 
@@ -1079,7 +1324,7 @@ sap.ui.define([
                     var zId = characteristicDetails[i].charcInternalId;
                     var classInternalId = zId;
                     var classificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
-                    oStatus.bFoundYes=false;
+                    oStatus.bFoundYes = false;
                     for (let header of classificationAssignmentHeaders) {
                         if (header.assignmentCharacteristicValues) {
                             let match = header.assignmentCharacteristicValues.find(item => item.charcInternalId === classInternalId);
@@ -1091,9 +1336,9 @@ sap.ui.define([
                         }
                     }
                     // If we reach here, it means no match was found with "YES"
-                    if (!oStatus.bFoundYes){
-                    
-                    return false; // No matching "YES" found in any header
+                    if (!oStatus.bFoundYes) {
+
+                        return false; // No matching "YES" found in any header
                     }
                 }
                 if (zname === "Z_MATERIALVALIDATION_PLANT") {
@@ -1101,7 +1346,7 @@ sap.ui.define([
                     var classificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
                     var sCurrentPlant = this.getPodController().getUserPlant();
                     var foundPlantMatch = false;
-                
+
                     for (let header of classificationAssignmentHeaders) {
                         if (header.assignmentCharacteristicValues) {
                             let match = header.assignmentCharacteristicValues.find(item => item.charcInternalId === classInternalId);
@@ -1112,7 +1357,7 @@ sap.ui.define([
                             }
                         }
                     }
-                
+
                     if (!foundPlantMatch) {
                         oStatus.bFoundPartsExclusion = false;
                         // Continue to the next iteration if needed
@@ -1126,7 +1371,7 @@ sap.ui.define([
                     var classificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
                     var currentResource = this.getPodSelectionModel().getResource().getResource();
                     var foundResourceMatch = false;
-                
+
                     for (let header of classificationAssignmentHeaders) {
                         if (header.assignmentCharacteristicValues) {
                             let match = header.assignmentCharacteristicValues.find(item => item.charcInternalId === classInternalId);
@@ -1137,7 +1382,7 @@ sap.ui.define([
                             }
                         }
                     }
-                
+
                     if (!foundResourceMatch) {
                         oStatus.bFoundResourceExclusion = false;
                         // Continue to the next iteration if needed
@@ -1147,101 +1392,101 @@ sap.ui.define([
                     }
                 }
 
-if (0){
-                if (zname === "Z_MATERIALVALIDATION") {
-            
-                    //TODO
-                    //put some sanity checks in here to verify the properties exist.
-                    var zId = characteristicDetails[i].charcInternalId;
-                    var classInternalId = zId;
-                    var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
-                    var arrassignmentCharacteristicValues = arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
+                if (0) {
+                    if (zname === "Z_MATERIALVALIDATION") {
 
-                    var index = arrassignmentCharacteristicValues.findIndex(function (item) {
-                        return item.charcInternalId === classInternalId;
-                    });
-
-                    //we have the index into assignmentCharacteristicValues where the YES or NO values is 
-                    var bYes = arrassignmentCharacteristicValues[index].charcValue === "YES" ? true : false;
-                    //do we really need to verify that is NO ? what else can it be ?
-                    if (!bYes) {
-                        oStatus.bFoundYes = false;
-                        return false;
-                    } else {
-                        // go to next iteration if any
-                        oStatus.bFoundYes = true;
-                        continue;
-                    }
-                }
-
-
-
-
-
-
-
- //Z_MATERIAL_VALIDATION Check
-                // work with the other cases
-                if (zname === "Z_MATERIALVALIDATION_PLANT") {
-                    //TODO for debug , remove after verification
-                    var cDetails = characteristicDetails[i];
-
-                    var zId = characteristicDetails[i].charcInternalId;
-                    var classInternalId = zId;
-                    var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
-                    var arrassignmentCharacteristicValues = arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
-
-                    var index = arrassignmentCharacteristicValues.findIndex(function (item) {
-                        return item.charcInternalId === classInternalId;
-                    });
-                    if (index !== -1) {
-                        var plants = arrassignmentCharacteristicValues[index].charcValue;
-
-                        var sCurrentPlant = this.getPodController().getUserPlant();
-                        if (plants.includes(sCurrentPlant)) {
-                            //TODO do we want to exit now ?, maybe the MATERIAL Validation has not happened yet
-                            // maybe does not matter because if allow to continue if MV was no anyway and if is YES then is ok too.
-                            oStatus.bFoundPartsExclusion = true;
-                            return false;
-                        } else {
-                            oStatus.bFoundPartsExclusion = false;
-                            continue;
-                        }
-                    } else {
-                        oStatus.bFoundPartsExclusion = false;
-                        continue;
-                    }
-
-                } //Z_MATERIALVALIDATION_PLANT
-        
-
-                if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
-
-                    var currentResource = this.getPodSelectionModel().getResource().getResource();
-                    //In case that the properties are not available wrap in a try catch loop
-                    try {
+                        //TODO
+                        //put some sanity checks in here to verify the properties exist.
                         var zId = characteristicDetails[i].charcInternalId;
                         var classInternalId = zId;
                         var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
                         var arrassignmentCharacteristicValues = arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
+
                         var index = arrassignmentCharacteristicValues.findIndex(function (item) {
                             return item.charcInternalId === classInternalId;
                         });
 
-                        //we have the index into assignmentCharacteristicValues where the resource to match is
-                        if (arrassignmentCharacteristicValues[index].charcValue.includes(currentResource)) {
-                            oStatus.bFoundResourceExclusion = true;
-
+                        //we have the index into assignmentCharacteristicValues where the YES or NO values is 
+                        var bYes = arrassignmentCharacteristicValues[index].charcValue === "YES" ? true : false;
+                        //do we really need to verify that is NO ? what else can it be ?
+                        if (!bYes) {
+                            oStatus.bFoundYes = false;
+                            return false;
                         } else {
-                            oStatus.bFoundResourceExclusion = false;
-
+                            // go to next iteration if any
+                            oStatus.bFoundYes = true;
+                            continue;
                         }
-                    } catch (error) {
-                        oStatus.bFoundResourceExclusion = false;
                     }
 
-                } //Z_MATERIALVALIDATION_RESOURCE
-        }
+
+
+
+
+
+
+                    //Z_MATERIAL_VALIDATION Check
+                    // work with the other cases
+                    if (zname === "Z_MATERIALVALIDATION_PLANT") {
+                        //TODO for debug , remove after verification
+                        var cDetails = characteristicDetails[i];
+
+                        var zId = characteristicDetails[i].charcInternalId;
+                        var classInternalId = zId;
+                        var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                        var arrassignmentCharacteristicValues = arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
+
+                        var index = arrassignmentCharacteristicValues.findIndex(function (item) {
+                            return item.charcInternalId === classInternalId;
+                        });
+                        if (index !== -1) {
+                            var plants = arrassignmentCharacteristicValues[index].charcValue;
+
+                            var sCurrentPlant = this.getPodController().getUserPlant();
+                            if (plants.includes(sCurrentPlant)) {
+                                //TODO do we want to exit now ?, maybe the MATERIAL Validation has not happened yet
+                                // maybe does not matter because if allow to continue if MV was no anyway and if is YES then is ok too.
+                                oStatus.bFoundPartsExclusion = true;
+                                return false;
+                            } else {
+                                oStatus.bFoundPartsExclusion = false;
+                                continue;
+                            }
+                        } else {
+                            oStatus.bFoundPartsExclusion = false;
+                            continue;
+                        }
+
+                    } //Z_MATERIALVALIDATION_PLANT
+
+
+                    if (zname == "Z_MATERIALVALIDATION_RESOURCE") {
+
+                        var currentResource = this.getPodSelectionModel().getResource().getResource();
+                        //In case that the properties are not available wrap in a try catch loop
+                        try {
+                            var zId = characteristicDetails[i].charcInternalId;
+                            var classInternalId = zId;
+                            var arrClasssificationAssignmentHeaders = bVetting.classificationAssignmentHeaders;
+                            var arrassignmentCharacteristicValues = arrClasssificationAssignmentHeaders[0].assignmentCharacteristicValues;
+                            var index = arrassignmentCharacteristicValues.findIndex(function (item) {
+                                return item.charcInternalId === classInternalId;
+                            });
+
+                            //we have the index into assignmentCharacteristicValues where the resource to match is
+                            if (arrassignmentCharacteristicValues[index].charcValue.includes(currentResource)) {
+                                oStatus.bFoundResourceExclusion = true;
+
+                            } else {
+                                oStatus.bFoundResourceExclusion = false;
+
+                            }
+                        } catch (error) {
+                            oStatus.bFoundResourceExclusion = false;
+                        }
+
+                    } //Z_MATERIALVALIDATION_RESOURCE
+                }
 
 
             } //for
@@ -1281,12 +1526,12 @@ if (0){
                 return;
             }
 
-             //check for single sfc
-             var selection = this.getPodSelectionModel().getSelections();
-             if (selection.length > 1) {
-                 this.showErrorMessage("Please make a single Selection Only");
-                 return;
-             }
+            //check for single sfc
+            var selection = this.getPodSelectionModel().getSelections();
+            if (selection.length > 1) {
+                this.showErrorMessage("Please make a single Selection Only");
+                return;
+            }
             try {
                 //this.showSuccessMessage("onTestWorkFlow clickd!");
                 var eOrder = this.getView().byId("OrderValueLabel").getText();
@@ -1357,10 +1602,19 @@ if (0){
                 return;
             }
 
+            //validate Resource
             //Validate DataCollections
             var iOperation = this.getView().getModel().getProperty("/operation");
             var iPlant = this.getPodController().getUserPlant();
             var iResource = this.getView().getModel().getProperty("/resource");
+
+
+            var valRes = await this.bValidateResForStart(iResource, iPlant);
+            if (!valRes) {
+                this.showErrorMessage("Resource status is not appropriate for Start");
+                return;
+
+            }
 
             var valdcRes = await this.getUncollectedParameters(thesfc, iOperation, iResource);
             if (valdcRes.uncollectedParams.length != 0) {
@@ -1394,18 +1648,30 @@ if (0){
             var startRes = await this.startAllSfcs(iOperation, iPlant, iResource, sSfcs);
 
             //Marker565
-            let laborOn = this.getView().getModel().getProperty("/labor");
-            if (laborOn) {
+            let bLaborOn = this.getView().getModel().getProperty("/labor");
+            if (bLaborOn) {
+                var iOrder = this.getView().getModel().getProperty("/orderselect");
+                var ppdParams = await this.getSFCDetailsForLaborOnPPD(thesfc,iOrder);
+                 
                 this.laborOnDialog().then(async inputValue => {
                     console.log('Dialog input value:', inputValue);
                     var noops = this.getView().getModel().getProperty("/numberOfOperators");
                     // call laborOn API.
                     try {
-                        var reslabor = await this.laborOn(noops);
+                        // var reslabor = await this.laborOn(noops);
+                        var reslabor = await this.callAPPD(ppdParams,noops);
+                        if (reslabor) {
+                            this.showSuccessMessage("LaborOn start executed!", true);
+                        } else {
+                            this.showErrorMessage("labor did not execute", true);
 
+                        }
+                    } catch (oError) {
 
-                    } catch (error) {
                         console.log("error in laborOn");
+                        oLogger.info("Error in laborOn 1619");
+                        this.showErrorMessage("Labor On start failure");
+                        //throw oError;
                     }
                 }).catch(error => {
                     console.error('Dialog error:', error);
@@ -1430,14 +1696,14 @@ if (0){
                 try {
                     let serRes = await this.serializefcAPI(thesfc, isubv);
                 } catch (error) {
-                    this.showErrorMessage("Error in serialize API",true);
+                    this.showErrorMessage("Error in serialize API", true);
                     return;
-                    
+
                 }
 
                 cQuantity -= isubv;
             }
-            this.showSuccessMessage("Start Order/Split is completed",true);
+            this.showSuccessMessage("Start Order/Split is completed", true);
 
             //Done (dont we need to set the quantity on the original sfc to 1?)
             // we need to check if SerializeAPI does this automatically (subtracts from the quantity)
@@ -1601,6 +1867,18 @@ if (0){
 
         },
 
+        onTestLaborOn: async function onTestLaborOn() {
+            try {
+                var lbon = await this.laborOn(3);
+
+            } catch (oError) {
+                console.log(oError);
+
+            }
+
+        },
+
+
         /**
          * LaborOn
          * @returns 
@@ -1610,6 +1888,8 @@ if (0){
 
             var sUrl = this.getPublicApiRestDataSourceUri() + "/timetracking/v1/direct-labor/start";
             //var sUrl = "https://api.test.us20.dmc.cloud.sap/timetracking/v1/direct-labor/start";
+            //var surli="https://api.test.us10.dmc.cloud.sap/timetracking/v1/direct-labor/start";
+
             var sfcplant = this.getPodController().getUserPlant();
             var iOperation = this.getView().getModel().getProperty("/operation");
             var iResource = this.getView().getModel().getProperty("/resource");
@@ -1648,24 +1928,24 @@ if (0){
 
             };
             var ssfcParameters = {
-                numberOfOperators: 1,
+                numberOfOperators: 2,
                 operation: iOperation,
                 plant: sfcplant,
                 resource: iResource,
                 routing: r,
-                routingType: rType,
+                routingType: "SHOPORDER_SPECIFIC",//rType,
                 routingVersion: rVersion,
                 sfc: thesfc,
                 shopOrder: iOrder,
                 stepId: oStepId,
-                userId: iUserId,
+                userId: "ilias.skordilis@syntax.com",
                 workCenter: altWc
 
             };
             var that = this;
             try {
 
-                    var oResponseData = await new Promise((resolve, reject) => {
+                var oResponseData = await new Promise((resolve, reject) => {
                     this.ajaxPostRequest(
                         sUrl,
                         ssfcParameters,
@@ -1745,14 +2025,14 @@ if (0){
                 this.showErrorMessage("Please make a Selection first.");
                 return;
             }
-        
-           try {
-            let res= await this.sfcDone();
 
-           }catch(error){
-            console.log(error);
-            this.showErrorMessage(error);
-           }
+            try {
+                let res = await this.sfcDone();
+
+            } catch (error) {
+                console.log(error);
+                this.showErrorMessage(error);
+            }
         },
 
         /**
@@ -1765,17 +2045,23 @@ if (0){
                 this.showErrorMessage("Please  select a single SFC to Merge with all other SFCs in the Order");
                 return;
             }
+            //get the worklist data and the selected sfc
 
             try {
                 var oWorkListData = await this.getWorklistDataSelectedOrder();
                 var thesfc = selection[0].getSfc().getSfc();
+                var theRouting = selection[0].sfcData.routing;
+
 
             } catch (error) {
                 oLogger.info(`getWorklistDataSelectedOrder: Error : ${error}`);
                 throw error;
             }
-            // get all Sfcs from the result of the getWorklistDataSelectedOrder;
+            // get all Sfcs in the order  from the result of the getWorklistDataSelectedOrder;
+
             var allSfcs = oWorkListData[0].orderSfcs;
+
+            //check for SFCs on HOLD
             try {
                 var onHoldSFCSarr = await this.filterSFCsonHold(allSfcs);
             } catch (error) {
@@ -1783,52 +2069,110 @@ if (0){
             }
 
             //if we found sfcs on hold show an error message and return
-            if (onHoldSFCSarr.length >0 ){
-                this.showErrorMessage("There are SFCs on Hold in the Order cannot Merge.");
+
+            if (onHoldSFCSarr.length > 0) {
+                this.showErrorMessage("There are SFCs on Hold. Cannot proceed.");
                 return;
             }
+
+            //ask for confirmation if the user really wants to discard the order
+
+            try {
+                var choice = await this.OpenConfirmationDialog("Are you sure you want to discard the Order ?");
+                if (!choice) {
+                    return 0;  // or reject("aborted!")
+                }
+
+            } catch (error) {
+                throw error;
+            }
             var sfcplant = this.getPodController().getUserPlant();
+
+
 
             //Now we can merge the sfcs-after we filter for active sfcs
             // signoff the active sfcs 
             // Make the selected SFC the parent SFC and all other sfcs the sources
             //after you filter for active sfcs and signoff
             try {
-                var activesfcs=await this.filterActiveSFCsAlt(allSfcs);
+                var activesfcs = await this.filterActiveSFCsAlt(allSfcs, this._getWorkListSelectedOperationGlb());
 
-            }catch(error){
+            } catch (error) {
+                oLogger.INFO(error);
                 throw error;
             }
             console.log(activesfcs);
-
+            //Summary:
+            //In Order to merge SFCs , we will find the active SFCS from the order selected
+            // will signoff all the the active sfcs
+            // then the selected sfc becomes the parent and the rest the source to call 
+            //the Merge API -- corrections needed below.
             //signOff all the active sfcs 
             // thesfc is the selected sfc
             // activesfc is all the sfcs
             // we also need to check if the selected sfc is in queue
-            try {
-                 var inq=this.signOffSfcs()
 
-            }catch (oError){
+            //signoff the sfcs in the order  that are active
+            if (activesfcs.length != 0) {
+                //Marker6000
+                try {
+                    var oView = this.getView();
+                    var oModel = oView.getModel();
+                    var iOrder = oModel.getProperty('/orderselect');
+                    if (!iOrder) {
+                        this.showErrorMessage("No Selection was found for Order");
+                        return;
+                    }
+                    var signedoff = await this.signOffAllSfcsOrderOperation(iOrder);
+
+                } catch (oError) {
+                    throw oError;
+                }
+            }
+
+            //at this point activesfcs contain sfcs in Queue but only the ones that were
+            // signedoff
+            // we need to get now all the sfcs in queue or new 
+            // to be merged ?
+            // is necessary to call worklistData again since the statuses have changed from the signoff
+
+            try {
+                var oWorkListData = await this.getWorklistDataSelectedOrder();
+                var tobeFilteredSFCs = oWorkListData[0].orderSfcs;
+
+                var iSfcsToMerge = await this.filterInQueueSFCsAlt(tobeFilteredSFCs, theRouting);
+
+
+            } catch (oError) {
                 throw oError;
             }
 
+            //Merge SFCs 
+            //check if we only have one sfc in the returned list 
 
-
+            if (iSfcsToMerge.length <= 1) {
+                this.errorMessage("Not enough SFCs to Merge must have more than 1");
+                return;
+            }
 
             try {
-                
 
-                let  thesfcexcluded=activesfcs.filter(item => item !== thesfc);
-                var responseData=await this.mergeSfcsAPI(thesfc,thesfcexcluded);
 
-            }catch (error){
+                let thesfcexcluded = iSfcsToMerge.filter(item => item !== thesfc);
+                var responseData = await this.mergeSfcsAPI(thesfc, thesfcexcluded);
+
+            } catch (error) {
+                this.showErrorMessage("Merge failed ", true);
                 throw error;
             }
 
-             //log Non Conformance from the resulting Merged SFC
+            //log Non Conformance from the resulting Merged SFC
+            // the sfc
             // the SFC to log the non conformance  is provided by the responseData
             // returned by the mergeSFCsAPI above 
             // pass the parent sfc used in the Merge sfc
+
+
 
             try {
                 var sfcarr = [];
@@ -1837,14 +2181,25 @@ if (0){
 
             } catch (error) {
                 throw error;
-            }           
+            }
+
+            //disregard Order 
+
+            try {
+
+                var dOrder = await this.disregardOrder();
+
+            } catch (oError) {
+                throw oError;
+
+            }
 
         }, //end SfcDone
 
         /**
          * logNonConformanceAPI
          */
-        logNonConformanceAPI: async function (sfcArr,iPlant) {
+        logNonConformanceAPI: async function (sfcArr, iPlant) {
             var sUrl = this.getPublicApiRestDataSourceUri() + "/nonconformance/v1/log";
             var sfcplant = this.getPodController().getUserPlant();
 
@@ -1872,9 +2227,8 @@ if (0){
                 });
                 return oResponseData;
             } catch (error) {
-                oLogger.info("oError.error.message is= ", oError.message);
-                oLogger.info("Errors - Non conformance sHttpErrorMessage is =  " + sHttpErrorMessage);
-                that.showErrorMessage("Error detected in  NonConfrmance log   API : " + oError.message);
+                oLogger.info("oError.error.message is= ", error.message);
+                that.showErrorMessage("Error detected in  NonConfrmance log   API : " + error.message);
 
                 throw error;
             }
@@ -1914,21 +2268,32 @@ if (0){
 
         },
 
-        onOrderDisregard: async function () {
+        onOrderDiscard: async function () {
             if (!this.bCheckSelectionModel()) {
                 this.showErrorMessage("Please make a selection first");
                 return;
             }
-            this.disregardOrder();
+            try {
+                disOrder = await this.discardOrder();
+
+            } catch (oError) {
+                this.showErrorMessage(oError.message);
+            }
 
         },
 
+        /**
+         * discardOrder
+         * Assumes and order is selected and gets 
+         * the order from the selection.
+         * @returns 
+         */
 
-        disregardOrder: async function () {
-            this.showErrorMessage("DisregardOrder", true);
-
-        },
-        disregardOrder: async function () {
+        discardOrder: async function () {
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("Please make a selection first");
+                return;
+            }
 
             var sUrl = this.getPublicApiRestDataSourceUri() + "/order/v1/orders/discard";
             var sfcplant = this.getPodController().getUserPlant();
@@ -1940,23 +2305,26 @@ if (0){
                 plant: sfcplant
             };
             var that = this;
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
 
-            var oResponseData = await new Promise((resolve, reject) => {
-                this.ajaxPostRequest(
-                    sUrl,
-                    ssfcParameters,
-                    function (oResponseData) {
-                        resolve(oResponseData);
-                    },
-                    function (oError, sHttpErrorMessage) {
-
-                        oLogger.info("oError.error.message is= ", oError.message);
-                        oLogger.info("Errors - Disregard Order sHttpErrorMessage is =  " + sHttpErrorMessage);
-                        that.showErrorMessage("Error detected in Disregared Order  API : " + oError.message);
-                        reject(oError);
-                    });
-            });
-            return oResponseData;
+                            oLogger.info("oError.error.message is= ", oError.message);
+                            oLogger.info("Errors - Disregard Order sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            //that.showErrorMessage("Error detected in Disregard Order  API : " + oError.message);
+                            reject(oError);
+                        });
+                });
+                return oResponseData;
+            } catch (oError) {
+                throw oError;
+            }
 
         },
 
@@ -2374,7 +2742,7 @@ if (0){
             for (let i = 0; i < vlength; i += SFCS_CHUNK) {
 
 
-                let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);        
+                let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);
 
                 /** API Call to start all SFCS************** *********/
 
@@ -2503,6 +2871,17 @@ if (0){
             var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloal ch..ch..
             var sfcResource = this.getView().getModel().getProperty("/resource");
             //var sfcResource = this.getPodSelectionModel().getResource().getResource();
+
+            //Validate resource status marker2000 
+
+            var resStatus = await this.bValidateResForStart(sfcResource, sfcplant);
+
+            if (!resStatus) {
+                this.showErrorMessage("Resource status is not appropriate for Start");
+                return;
+
+            }
+
             var oconfig = this.getConfiguration();
             //check to see if PRT should be checked first
             let validatePRT = this.getView().getModel().getProperty("/checkPrt");
@@ -2553,7 +2932,7 @@ if (0){
             // //Get all the sfcs in the order AltEnhanced
 
             try {
-                var sfcsReadyToStart = await this.filterStartableSFCsAlt(allSfcs);
+                var sfcsReadyToStart = await this.filterStartableSFCsAlt(allSfcs,sfcOperation);
                 oLogger.info(`list of sfcs that are startable frm filterStartableSFCsAlt is ${sfcsReadyToStart}`);
 
 
@@ -2601,6 +2980,7 @@ if (0){
                     );
                 } catch (error) {
                     this.resetButtonsWrkfl();
+                    throw error;
                 }
 
                 //var isfail = (typeof chunckStartd ==='undefined')? true: false;
@@ -2730,7 +3110,7 @@ if (0){
          * filterSFCsOnHold
          * find all sfcs that are on hold
          * Marker515
-         */ 
+         */
 
         filterSFCsonHold: async function (allsfcsinorder) {
             var onHoldSFCS = [];
@@ -2742,9 +3122,9 @@ if (0){
                     if (item.status.code == SFCS_ONHOLD) {
                         isOnHold = true;
 
-                    }      
+                    }
 
-                    if ( isOnHold) {
+                    if (isOnHold) {
                         onHoldSFCS.push(item.sfc);
                     }
                     resolve();
@@ -2767,9 +3147,10 @@ if (0){
          * @param {*} allsfcsinorder an array of Sfcs in the format returned from ssfcs=getWorklistDataSelectedOrder().orderSfcs
          * @returns and array of all startable sfcs - takes care of not including sfcs that belong to different operation ,resource , and 0 in inQueue value.
          * 
+         * Do we need to make sure all startAble SFCs are in the same operation ?
          */
 
-        filterStartableSFCsAlt: async function (allsfcsinorder) {
+        filterStartableSFCsAlt: async function (allsfcsinorder,op) {
             var startableSFCS = [];
             var promises = allsfcsinorder.map(item => {
                 return new Promise((resolve, reject) => {
@@ -2781,11 +3162,25 @@ if (0){
 
                     }
                     else {
+                        //is in Queue but not certain which operation
                         if (item.status.code == SFCS_INQUE && (item.quantityInQueue > 0)) {
-                            isStartable = true;
+                            if (op) {
+                                //
+                                //get the steps (Array)
+                                var steps = item.steps;
+                                //match the op in the steps array
+                                //after the match check for inWork and Done to see if we really are in the same operation
+                                let oMatch = steps.find(step => step.operation.operation === op);
+                                if (oMatch) {
+                                    //we found our operation check if inQueue
+                                    isStartable = (oMatch.quantityInQueue > 0);
+                            } //if (op)
+                            
+                            
                         }
                     }
-                    // var isStartable = (item.status.code  === SFCS_NEW) || (item.status.code === SFCS_INQUE && item.quantityInQueue > 0);
+                }
+                    // var isStartable = (item.status.code  == SFCS_NEW) || (item.status.code == SFCS_INQUE ) && item.quantityInQueue > 0);
 
                     if (isStartable) {
                         startableSFCS.push(item.sfc);
@@ -2810,7 +3205,7 @@ if (0){
          * 
          */
 
-        filterActiveSFCsAlt: async function (allsfcsinorder) {
+        filterActiveSFCsAlt: async function (allsfcsinorder, op) {
             var activeSFCS = [];
             var promises = allsfcsinorder.map(item => {
                 return new Promise((resolve, reject) => {
@@ -2819,10 +3214,34 @@ if (0){
                     var isActive = false;
                     if (item.status.code == SFCS_ACTIVE) {
                         isActive = true;
+                        //Marker333
+                        if (op) {
+                            //get the steps (Array)
+                            var steps = item.steps;
+                            //match the op in the steps array
+                            //after the match check for inWork and Done to see if we really are in the same operation
+                            let oMatch = steps.find(step => step.operation.operation === op);
 
+                            if (oMatch) {
+                                console.log(oMatch);
+                                //we found the Object that matches the operation
+                                // Now we want to verify that this is on the selected operation or
+                                // Some other operation so we would check if is inWork to verify that.
+
+                                if (oMatch.quantityInWork) {
+                                    isActive = true;
+                                } else {
+                                    isActive = false; // Not in work in the selected operation.
+                                }
+                            }
+                            else {
+                                console.log("match for operation not found!");
+                                isActive = false;
+                            }
+                        }
                     }
-                
-                   
+
+
                     if (isActive) {
                         activeSFCS.push(item.sfc);
                     }
@@ -2836,6 +3255,75 @@ if (0){
                 oLogger.info(`${error} from filterActiveSFCsAlt `); // Log any errors
             }
         }, //end filterActiveSFCSAlt
+
+        /**
+         * filterInQueueSFCsAlt
+         * @param {*} allsfcsinorder an array of Sfcs in the format returned from ssfcs=getWorklistDataSelectedOrder().orderSfcs
+         * @returns and array of all  sfcs in queue - takes care of not including sfcs that belong to different operation ,resource , and >0 in inQueue value.
+         * 
+         *  We need to make sure all inQueue  SFCs are in the same operation 
+         * quantitity in queue > 1
+         * also we need to make sure that all sfcs have the same routing as the selected sfc
+         * if the parameter irouting is not passed then it does not enforce the condition of the same 
+         * routine for all the sfcs inQueue
+         */
+
+        filterInQueueSFCsAlt: async function (allsfcsinorder, irouting) {
+            var inQueueSFCS = [];
+            var promises = allsfcsinorder.map(item => {
+                return new Promise((resolve, reject) => {
+
+                    //check if inQueue : criterion is that the sfc code  is in queue and quantity in Queue must be > 0.
+                    var isInQueue = false;
+                    console.log(typeof item.status.code); // Check if this logs 'number' or 'string'
+                    console.log(typeof SFCS_INQUE); // Check if this also logs 'number' or 'string'
+
+
+                    if (irouting) {
+                        var bSamerouting = (item.routing.routing == irouting);
+                    } else {
+                        bSamerouting = true;
+
+                    }
+                    //check for SFCS_INQUE , quantityInQueue >0 and also bSameRouting which is true or false depending
+                    // if the item.routing == irouting the passed parameter
+                    // it the paramter irouting  is not passed then the  bSameRouting value is always true which means 
+                    // we bypass routing checking.
+                    // excluding sfcs that are not in the same routing as the selected sfc seems is required by the merge API.
+
+                    if (item.status.code == SFCS_INQUE && (item.quantityInQueue > 0 && (bSamerouting))) {
+                        
+                        isInQueue = true;
+
+                    } else {
+                        isInQueue = false;
+                    }
+
+
+
+                    //if (item.status.code == SFCS_INQUE && (item.quantityInQueue > 0)) {
+                    //   isInQueue = true;
+                    //   
+                    //}
+                    //else {
+                    //    isInQueue = false;
+                    //}
+
+                    if (isInQueue) {
+                        inQueueSFCS.push(item.sfc);
+                    }
+                    resolve();
+                });
+            });
+            try {
+                await Promise.all(promises);
+                return inQueueSFCS;
+            } catch (error) {
+                oLogger.info(`${error} from filterInQueueSFCsAlt  `); // Log any errors
+            }
+        }, //end filterInQueueSFCsAlt
+
+
 
 
         /**
@@ -2901,9 +3389,12 @@ if (0){
             // TODO might be better to make this async and use await  just in case we have side effects
 
             var tranformedComponents = this.transformComponentData(theComponents);
+            //remove any duplicate Components
+            var uniqueComponents = [...new Set(tranformedComponents)];
+
             //vet the components against the classificaton entry  Marker3
             // TODO wrap around try catch 
-            var vetted = await this.vetComponentsToValidate(tranformedComponents);
+            var vetted = await this.vetComponentsToValidate(uniqueComponents);
             oLogger.info(" vetted= " + vetted);
 
             //now create a table Model only with the vetted components
@@ -3017,17 +3508,23 @@ if (0){
 
             } catch (error) {
                 var sErr = `Error in StartOrderAltEnhanced : ${JSON.stringify(error)}`;
-               
+
             }
 
-     
+
         },
-        
+
         /**
          * signOffAllSfcsOrderOperation
          * @param {*} eOrder 
          * @param {*} tevt 
          * @returns 
+         * this function looks at the order and the selected operation
+         * and all the sfcs in the order. 
+         * then it filter all the valid active sfcs in the operation.
+         * then it calls signOff API that if the number of sfcs is large 
+         * // it loop though in smaller chunks 
+         * 
          */
 
         signOffAllSfcsOrderOperation: async function (eOrder, tevt) {
@@ -3037,34 +3534,45 @@ if (0){
                 return;
             }
             if (!eOrder) {
-                this.showErrorMessage("An error was detected: " + error.message, true);
+                this.showErrorMessage("Order must be provided");
                 return;
             }
             tevt.getSource().setBusy(true);
+            // Marker5000
             //TODO do we need to call getAllSfcsInOrder all the time?
             // see if we can get it from the model 
             // even more see if we can get all started sfcs
-            var allSfcs = await this.getAllSfcsInOrder(eOrder);
+            // We need to substitue this call to 
+            // allSfcs = await this.
+            try {
+                var oWorkListData = await this.getWorklistDataSelectedOrder(eOrder);
+                var allSfcs = oWorkListData[0].orderSfcs
+                console.log(allSfcs);
+
+            } catch (oError) {
+
+            }
+
             oLogger.info("sfcs found in Order  " + allSfcs.length);
 
-            //TODO split sfcs array into multiple arrays of given size if 
-            // if the sfcs in the array are >500
-            //var sfcstostart = await this.filterStartableSFCs(allSfcs);
-            //oLogger.info("startablesfcs size  " + sfcstostart.length);
 
-            //temporarilly do signoff so we can test 
-            //filter from the list only the active sfcs
-            var thesfcs = await this.filterActiveSFCS(allSfcs);
+            // use this.filterActiveSFCSAlt Marker3000
+            var iOperation = this._getWorkListSelectedOperationGlb();
+            var thesfcs = await this.filterActiveSFCsAlt(allSfcs, iOperation);
 
             if ((typeof thesfcs === 'undefined') || thesfcs.length === 0) {
                 this.showErrorMessage("No Sfcs to signoff ", true);
                 tevt.getSource().setBusy(false);
+
+                // we have nothing else to do
+                return;
             }
             oLogger.info("active sfcs found  " + thesfcs.length);
-
             for (let i = 0; i < thesfcs.length; i += SFCS_CHUNK) {
 
                 var partofthesfcs = thesfcs.slice(i, i + SFCS_CHUNK);
+                //TODO add a try catch here
+
                 var signedoff = await this.signOffSfcs(partofthesfcs);
                 var waitfor = await this.delay(1000);
             }
@@ -3074,20 +3582,7 @@ if (0){
 
         },
 
-        /**
-         * 
-         * onSignOffComponents
-         * @param {*} evt 
-         */
-        onSignOffComponents: function (evt) {
-            console.log("Validate button pressed");
-            var signoffpromise = this.signOffSfcs();
-            signoffpromise.then(result => {
-                console.log("signoff done");
-            }).catch(error => {
-                console.log("Error in signoff components:Line 1108");
-            });
-        },
+
 
         filterActiveSFCS: async function (thesfcs) {
             var activeSFCS = [];
@@ -3241,10 +3736,13 @@ if (0){
             var oValidationButton = this.getView().byId("ValidateCompType");
             var oStartOrderButton = this.getView().byId("OrderStartType");
             var oCompleteButton = this.getView().byId("CompletComp");
+            var oSignoffButton = this.getView().byId("SignoffComp");
+
             //var oLabelStatus= this.getView().byId("StatusFlowType");
             oCompleteButton.setBusy(false);
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
+            oSignoffButton.setBusy(false);
             //oLabelStatus.setText("Process status ..idle");
         },
 
@@ -3329,6 +3827,8 @@ if (0){
         /***
          * 
          * openValidateDialog
+         *   name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation",
+         *  name: "llumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidationStaticHeader"
          */
 
         openValidateDialog: async function () {
@@ -3336,6 +3836,7 @@ if (0){
                 this._oResolve = resolve;
                 if (!this._oDialog) {
                     this.loadFragment({
+
                         name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation",
                         controller: this
                     }).then(function (oDialog) {
@@ -3499,16 +4000,7 @@ if (0){
             this.completeSfcs();
         },
 
-        /**
-         * 
-         * 
-         * onSignOffComponents
-         * @param {*} evt 
-         */
-        onSignOffComponents: function (evt) {
-            this.showSuccessMessage("Validate button pressed");
 
-        },
 
 
         /**

@@ -71,8 +71,11 @@
 
                             <Button id="SignoffComp" text="Signoff" visible="true"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestFunctionx" text="AltSO" visible="false"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
-                            <Button id="DisregardOrderId" text="Disregard Order" visible="false"  press="onOrderDisregard" class="sapUiTinyMarginEnd signoff-color"/>
-                            <Button id="TestFlow" text="Signoff***" visible="false"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="DisregardOrderId" text="Test Discard Order" visible="true"  press=".onOrderDiscard" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="TestLaborOn" text="Test-LaborOn" visible="true"  press=".onTestLaborOn" class="sapUiTinyMarginEnd signoff-color"/>
+                            
+                            <Button id="ValidateResourceId" text="ValRes" visible="true"  press=".onValidateResource" class="sapUiTinyMarginEnd signoff-color"/>
+                           
                             <Label id="MessageAreaId" text="Message Area" class="sapUiTinyMarginEnd"/>
 
                         </items>

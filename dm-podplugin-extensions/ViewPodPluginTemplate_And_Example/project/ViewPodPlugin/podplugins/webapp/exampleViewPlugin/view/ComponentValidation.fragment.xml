@@ -1,54 +1,43 @@
-<core:FragmentDefinition
-    xmlns="sap.m"
-    xmlns:core="sap.ui.core"
-    xmlns:table="sap.ui.table"
->
+<core:FragmentDefinition xmlns="sap.m" xmlns:core="sap.ui.core" xmlns:table="sap.ui.table">
     <Dialog title="Validate Components" id="dcomponentValidator" escapeHandler=".onValDEscape">
-        
-           
-       
-
-        <Table
-            id="Vcomp"
-            width="50%"
-            items="{
-                            path: '/components'
-                        }"
-        >
-         <headerToolbar>
-                <Toolbar>
-                 <Label text="Enter or Scan component"  width="35%"/>
-            <Input id="componentInput" submit="onEnterPressed" width="35%"/>
-            <Button
-                text="Validate"
-                type="Emphasized"
-                press="onValidateComponent"
-                
-            />
-            <Label text="                                                       " width = "55%" id="msgcustid"/>
-                </Toolbar>
-                </headerToolbar>
-
-            <columns>
-                <Column>
-                    <Text text='Components' />
-                </Column>
-                <Column>
-                    <Text text="Description" />
-                </Column>
-                <Column>
-                    <Text text="Validated" />
-                </Column>
-            </columns>
+        <VBox fitContainer="true">
             <items>
-                <ColumnListItem>
-                    <cells>
-                        <Text text="{component}" />
-                        <Text text="{description}" />
-                        <Text text="{validated}" />
-                    </cells>
-                </ColumnListItem>
+                <Toolbar>
+                    <Label text="Enter or Scan component" width="35%" />
+                    <Input id="componentInput" submit="onEnterPressed" width="35%" />
+                    <Button text="Validate" type="Emphasized" press="onValidateComponent" />
+                    <Label text="                                                       " width="55%" id="msgcustid" />
+                </Toolbar>
+                <ScrollContainer height="auto" width="100%" vertical="true">
+                    <Table id="Vcomp" width="100%" items="{path: '/components'}">
+                        <headerToolbar>
+                            <Toolbar visible="false">
+                                <!-- This is a placeholder to satisfy the Table control structure, but it's hidden -->
+                            </Toolbar>
+                        </headerToolbar>
+                        <columns>
+                            <Column>
+                                <Text text="Components" />
+                            </Column>
+                            <Column>
+                                <Text text="Description" />
+                            </Column>
+                            <Column>
+                                <Text text="Validated" />
+                            </Column>
+                        </columns>
+                        <items>
+                            <ColumnListItem>
+                                <cells>
+                                    <Text text="{component}" />
+                                    <Text text="{description}" />
+                                    <Text text="{validated}" />
+                                </cells>
+                            </ColumnListItem>
+                        </items>
+                    </Table>
+                </ScrollContainer>
             </items>
-        </Table>
+        </VBox>
     </Dialog>
 </core:FragmentDefinition>

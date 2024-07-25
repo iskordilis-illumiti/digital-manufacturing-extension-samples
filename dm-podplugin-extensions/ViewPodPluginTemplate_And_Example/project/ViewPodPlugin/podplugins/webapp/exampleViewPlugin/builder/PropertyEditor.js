@@ -34,6 +34,11 @@ sap.ui.define([
             this.addSwitch(oPropertyFormContainer,"sfcDoneVisible",oData);
             this.addSwitch(oPropertyFormContainer,"laborEnabled",oData);
 
+            //------------------- POD designer PPD to call setup ------
+            this.addInputField(oPropertyFormContainer, "title", oData);
+			this.addInputField(oPropertyFormContainer, "text", oData);
+			this.addInputField(oPropertyFormContainer, "tocallPPD", oData);
+
             
             
         },
@@ -54,7 +59,12 @@ sap.ui.define([
                 "relabelSFCVisible": true,
                 "checkPrt":true,
                 "sfcDoneVisible":true,
-                "laborEnabled":false
+                "laborEnabled":false,
+
+                //---- PPD setup for calling
+                "title": "PPD to call ",
+				"text": "tocallPPD",
+                "tocallPPD": "tocallPPD"
 
 
             };
