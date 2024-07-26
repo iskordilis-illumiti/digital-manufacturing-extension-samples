@@ -636,10 +636,10 @@ sap.ui.define([
                      * 
                      */
                     sUrl = sUrl + "page.size=20";
-                    sUrl = sUrl + "20&page.offset=" + 0;
+                    sUrl = sUrl + "&page.offset=" + 0;
                     sUrl = sUrl + "&plant=" + thePlant;
                     // sUrl = sUrl + "&operation=" + theOperation;
-                    sUrl = sUrl + "&resource=" + sfcResource;
+                    //sUrl = sUrl + "&resource=" + sfcResource;
                     sUrl = sUrl + "&filter.order=" + oOrder;
                     //sUrl =sUrl + "&filter.operation="+theOperation;
                     sUrl = sUrl + "&allSfcSteps=true";
@@ -657,10 +657,78 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
 
             }
+          
+        },
+
+        /**
+         * getWorkflexlistDataSelectedOrder
+         * @param {*} iOrder 
+         * @returns 
+         */
+
+        getWorkflexlistDataSelectedOrder: async function (iOrder) {
+
+            try {
+                var oResponseData = await new Promise((resolve, reject) => {
+                    var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?";
+                    var selection = this.getPodSelectionModel().getSelections();
+                    //sfc is not used in the API
+                    //var thesfc = selection[0].getSfc().getSfc();
+                    var thePlant = this.getPodController().getUserPlant();
+                    var theOperation = this._getWorkListSelectedOperationGlb();
+                    var sfcResource = this.getPodSelectionModel().getResource().getResource();
+                    var oView = this.getView();
+                    var oModel = oView.getModel();
+
+                    var oOrder = oModel.getProperty('/orderselect');
+
+                    /**
+                     * SAMPLES 
+                     * var sUrl = that._oPluginController.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?plant=" + that._getUserPlant();
+                     *sUrl = sUrl + "&workCenter=" + sWorkCenter;
+                     *    sUrl = sUrl + "&allSfcSteps=true&page.size=20&page.offset=" + iPageOffset;
+                     * 
+                     * "https://api./{regionHost}/sfc/v1/worklist/orders?page.size=20&allSfcSteps=false"
+                     * "https://api./{regionHost}/sfc/v1/worklist/orders/$count?allSfcSteps=false")
+                     * xhr.open("GET", "https://api.eu10.dmc.cloud.sap/sfc/v1/worklist/orders?page.size=20&filter.order=100122&allSfcSteps=false");
+                     * 
+                     */
+                   // sUrl = sUrl + "page.size=5";
+                    //sUrl = sUrl + "&page.offset=" + 0;
+                    sUrl = sUrl + "plant=" + thePlant;
+                    // sUrl = sUrl + "&operation=" + theOperation;
+                    //sUrl = sUrl + "&resource=" + sfcResource;
+                    sUrl = sUrl + "&filter.order=" + oOrder;
+                    sUrl = sUrl + "&page.size=20"
+                    sUrl = sUrl + "&page.offset=0"
+                    
+                    //sUrl =sUrl + "&filter.operation="+theOperation;
+                    sUrl = sUrl + "&allSfcSteps=true";
+
+                    console.log(sUrl);
+
+                    //this.ajaxGetRequest(sUrl, params, function (oResponseData)
+                    this.ajaxGetRequest(sUrl, null, function (oResponseData) {
+                        resolve(oResponseData);
+                    }, function (Error) {
+                        reject(Error);
+                    });
+                });
+                return oResponseData;
+            } catch (error) {
+                this.showErrorMessage("sfc/v1/worklist/orders failed", true);
+                this.resetButtonsWrkfl();
+                throw error;
+
+            }
+           
+        },
+
             /**
              * getSfcsInWork
              */
-        },
+        
+
         getSfcsInWork: async function () {
 
             try {
@@ -2918,14 +2986,18 @@ sap.ui.define([
             oStartOrderButton.setBusy(true);
             //Marker6
             try {
-                var oWorkListData = await this.getWorklistDataSelectedOrder();
-
+                var oWorkListData = await this.getWorkflexlistDataSelectedOrder();
             } catch (error) {
-                oLogger.info(`getWorklistDataSelectedOrder: Error : ${error}`);
+                oLogger.info(`getWorkflexlistDataSelectedOrder: Error : ${error}`);
                 throw error;
             }
             //marker9
             // get all Sfcs from the result of the getWorklistDataSelectedOrder;
+            var bwfail = oWorkListData || false;
+            if (!bwfail){
+                this.showErrorMessage("Data Error contact customer Support");
+                return;
+            }
             var allSfcs = oWorkListData[0].orderSfcs;
             oLogger.info(`we have ${allSfcs.length} number of Sfcs`);
 
