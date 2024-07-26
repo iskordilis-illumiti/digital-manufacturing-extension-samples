@@ -544,8 +544,8 @@ sap.ui.define([
                     };
                     var params = {
                         plant: thePlant,
-                        operation: thisfilter.operation,
-                        resource: sfcResource
+                        order: thisfilter.order
+                        
                     };
 
                     this.ajaxGetRequest(sUrl, params, function (oResponseData) {
@@ -594,17 +594,17 @@ sap.ui.define([
         /**
          * getWorklistDataSelectedOrder
          * 
-         * it will return an orray of objects  for the given operation , resource and plant
+         * it will return an orray of objects  for the given operation ,  and plant
          * the Additional information is in the returned object , like sfc status , material, bom and other
          * this is pageable call so  you have to call the API multipe times for large number of returned objects
          * you can use the $count API to get the number of returned objects.
          * In reality this is an OData call which has filter cababilty 
          * @link https://api.sap.com/api/sapdme_sfc/path/getOrderWorkListUsingGET
-         * @param resource
-         * @param operation
+         * @param order
+         *
          * @param plant
          * @returns the order info object
-         * @description it requires valid selectionModel in the work center POD
+         * @description it requires valid selectionModel in the  POD
          * 
          */
 
@@ -3100,8 +3100,9 @@ sap.ui.define([
 
             // tranform theComponents into single row array with just the component
             var tranformedComponents = this.transformComponentData(theComponents);
+            var uniqueComponents = [...new Set(tranformedComponents)];
             //vet the components against the classificaton entry
-            var vetted = await this.vetComponentsToValidate(tranformedComponents);
+            var vetted = await this.vetComponentsToValidate(uniqueComponents);
 
             if ((typeof vetted === 'undefined')) {
                 //This is wrong masking the problem but is only for debug purposes.
@@ -3466,8 +3467,13 @@ sap.ui.define([
 
             //vet the components against the classificaton entry  Marker3
             // TODO wrap around try catch 
+            try {
             var vetted = await this.vetComponentsToValidate(uniqueComponents);
             oLogger.info(" vetted= " + vetted);
+            } catch (oError){
+                this.showErrorMessage("failed vetting components",true);
+                throw oError;
+            }
 
             //now create a table Model only with the vetted components
             // and put it into the View Model
@@ -3761,12 +3767,23 @@ sap.ui.define([
                 ndcomponents: []
 
             };
+            var arrWorking = vettedComponents;
+            var indexVetted=0;
+            var ivettedlength = vettedComponents.length;
+
             for (let i = 0; i < result.length; i++) {
                 //check first if the component if is vetted
                 //if not skip it.
                 var rowColumn0 = result[i].component;
-
-                if (vettedComponents.includes(rowColumn0)) {
+               
+                
+                 
+                if (arrWorking.includes(rowColumn0)) {
+                    //move to the next component in the vettedComponents
+                        arrWorking=arrWorking.filter(element => element !==rowColumn0);
+                        if (arrWorking.length ===0){
+                            break;
+                        }
 
                     //push with masked with asterics apart from the first 4 chars
                     let unmasked = result[i].component;
