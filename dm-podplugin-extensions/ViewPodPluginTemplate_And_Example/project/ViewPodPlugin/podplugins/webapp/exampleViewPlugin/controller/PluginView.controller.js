@@ -313,23 +313,6 @@ sap.ui.define([
             ///pe/api/v1/process/processDefinitions/start?key=REG_96676307-ea1f-4fda-9936-035625c5e1d1
             ///pe/api/v1/process/processDefinitions/start?key=REG_96676307-ea1f-4fda-9936-035625c5e1d1
 
-            var iparams = {
-                "inOperation": iOperation,
-                "inPlant": sfcplant,
-                "inResource": iResource,
-                "inRouting": iRouting,
-                "inRoutingType": "SHOPORDER_SPECIFIC",
-                "inNumberOfOperators": 3,
-                "inRoutingVersion": rVersion,
-                "inSfc": thesfc,
-                "inOrder": iOrder,
-                //"inStartTime":"",
-                "inStepId": oStepId,
-                "inWorkCenter": workC,
-                "inUserId": iUserId,
-                "inOperationVersion": "ERP001"
-
-            }
             try {
 
                 var ppdresult = new Promise((resolve, reject) =>{
@@ -373,6 +356,11 @@ sap.ui.define([
                 this.showErrorMessage("Sfc not found ");
 
              }
+             try {
+             var uD= await this.getUserDetails();
+             }catch (oError){
+                throw oError;
+             }
 
              
 
@@ -389,7 +377,7 @@ sap.ui.define([
                 //"inStartTime":"",
                 "inStepId": thefirststep.stepId,
                 "inWorkCenter": thefirststep.plannedWorkCenter,
-                "inUserId": userId,
+                "inUserId":uD.badgeNumber,
                 "inOperationVersion": thefirststep.operation.version
             
 
@@ -398,6 +386,35 @@ sap.ui.define([
              return laborOnPPDParams;          
 
         },
+
+        /**
+         * getUserDetails
+         * Marker512
+         * returns:  User details which should include badgeId
+         */
+        getUserDetails: async function () {
+
+            var iUserId = this.getPodController().getUserId();
+            var iplant = this.getPodController().getUserPlant();
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/user/v1/users?";
+            var sUrl = sUrl +"plant="+iplant;
+            var sUrl = sUrl+"&email="+iUserId;
+            console.log(`Users API Url = ${sUrl}`);
+            try {
+                var oUserDetails = new Promise((resolve, reject) => {
+                    this.ajaxGetRequest(sUrl, null, function (oUserDetails) {
+                        resolve(oUserDetails);
+                    }, function (Error) {
+                        reject(Error);
+                    });
+                });
+                return oUserDetails;
+            }
+            catch (oError) {
+                throw oError;
+            }
+        },
+
 
 
         /**
@@ -1726,8 +1743,8 @@ sap.ui.define([
                     var noops = this.getView().getModel().getProperty("/numberOfOperators");
                     // call laborOn API.
                     try {
-                        // var reslabor = await this.laborOn(noops);
-                        var reslabor = await this.callAPPD(ppdParams,noops);
+                         //var reslabor = await this.laborOn(ppdParams , noops);
+                            var reslabor = await this.callAPPD(ppdParams,noops);
                         if (reslabor) {
                             this.showSuccessMessage("LaborOn start executed!", true);
                         } else {
@@ -1952,7 +1969,7 @@ sap.ui.define([
          * @returns 
          */
 
-        laborOn: async function (nofops) {
+        laborOn: async function (params , nofops) {
 
             var sUrl = this.getPublicApiRestDataSourceUri() + "/timetracking/v1/direct-labor/start";
             //var sUrl = "https://api.test.us20.dmc.cloud.sap/timetracking/v1/direct-labor/start";
@@ -1998,15 +2015,16 @@ sap.ui.define([
             var ssfcParameters = {
                 numberOfOperators: 2,
                 operation: iOperation,
+                operationVersion: "ERP001",
                 plant: sfcplant,
                 resource: iResource,
                 routing: r,
                 routingType: "SHOPORDER_SPECIFIC",//rType,
-                routingVersion: rVersion,
+                routingVersion:  "ERP001",
                 sfc: thesfc,
                 shopOrder: iOrder,
                 stepId: oStepId,
-                userId: "ilias.skordilis@syntax.com",
+                userId: "US1010",
                 workCenter: altWc
 
             };
@@ -3987,7 +4005,7 @@ sap.ui.define([
         onValidatePressedx: function (evt) {
             var howManyMatched = 0;
             this.showSuccessMessage("Validate button pressed");
-            var scannedOrEntered = this.byId("componentInput").getValue();
+            var scannedOrEntered = this.byId("componentInput").getValue().toUpperCase();
             var oTable = this.byId("Vcomp");
             var nRows = oTable.getItems();
             if (scannedOrEntered) {

@@ -27,3 +27,5 @@ docs/theme/.DS_Store
 **/mta_archives/*
 **/node_modules/*
 dm-podplugin-extensions/ViewPodPluginTemplate_And_Example/project/ViewPodPlugin/mta.yaml
+dm-podplugin-extensions/ViewPodPluginTemplate_And_Example/mta-op-4ea9ccd8-4b5c-11ef-aa1e-eeee0a9741cc/OPERATION.log
+.gitignore

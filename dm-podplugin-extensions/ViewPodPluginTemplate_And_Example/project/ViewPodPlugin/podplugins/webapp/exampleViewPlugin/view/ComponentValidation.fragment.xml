@@ -2,40 +2,42 @@
     <Dialog title="Validate Components" id="dcomponentValidator" escapeHandler=".onValDEscape">
         <VBox fitContainer="true">
             <items>
-                <Toolbar>
+                <Toolbar style= "Standard">
                     <Label text="Enter or Scan component" width="35%" />
                     <Input id="componentInput" submit="onEnterPressed" width="35%" />
                     <Button text="Validate" type="Emphasized" press="onValidateComponent" />
                     <Label text="                                                       " width="55%" id="msgcustid" />
                 </Toolbar>
-                <ScrollContainer height="auto" width="100%" vertical="true">
-                    <Table id="Vcomp" width="100%" items="{path: '/components'}">
-                        <headerToolbar>
-                            <Toolbar visible="false">
-                                <!-- This is a placeholder to satisfy the Table control structure, but it's hidden -->
-                            </Toolbar>
-                        </headerToolbar>
-                        <columns>
-                            <Column>
-                                <Text text="Components" />
-                            </Column>
-                            <Column>
-                                <Text text="Description" />
-                            </Column>
-                            <Column>
-                                <Text text="Validated" />
-                            </Column>
-                        </columns>
-                        <items>
-                            <ColumnListItem>
-                                <cells>
-                                    <Text text="{component}" />
-                                    <Text text="{description}" />
-                                    <Text text="{validated}" />
-                                </cells>
-                            </ColumnListItem>
-                        </items>
-                    </Table>
+                <ScrollContainer height="400px" width="100%" vertical="true">
+                    <content>
+                        <Table id="Vcomp" width="100%" items="{path: '/components'}">
+                            <headerToolbar>
+                                <Toolbar visible="false">
+                                    <!-- This is a placeholder to satisfy the Table control structure, but it's hidden -->
+                                </Toolbar>
+                            </headerToolbar>
+                            <columns>
+                                <Column>
+                                    <Text text="Components" />
+                                </Column>
+                                <Column>
+                                    <Text text="Description" />
+                                </Column>
+                                <Column>
+                                    <Text text="Validated" />
+                                </Column>
+                            </columns>
+                            <items>
+                                <ColumnListItem>
+                                    <cells>
+                                        <Text text="{component}" />
+                                        <Text text="{description}" />
+                                        <Text text="{validated}" />
+                                    </cells>
+                                </ColumnListItem>
+                            </items>
+                        </Table>
+                    </content>
                 </ScrollContainer>
             </items>
         </VBox>
