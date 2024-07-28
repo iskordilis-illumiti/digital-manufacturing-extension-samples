@@ -272,6 +272,20 @@ sap.ui.define([
             return (typeof obj === 'undefined');
         },
 
+        _setAreaMessage: async  function (message) {
+            var oMessageArea = this.getView().byId("MessageAreaId");
+            if (message) {
+                oMessageArea.setText(message);
+            }
+        },
+
+        _clearAreaMessage: async  function(){
+            this._setAreaMessage("");
+
+        },
+
+
+
 
 
         /****************************************************************
@@ -1651,8 +1665,14 @@ sap.ui.define([
         },
 
         onStartOrderSerialize: async function () {
-            let retv = await this.startOrderSerialize();
+            try {
 
+            await this._setAreaMessage("Start Order Split started.");
+            let retv = await this.startOrderSerialize();
+            await this._setAreaMessage("Start Order Split ended.");
+            }catch (oError ){
+                console.log("Error start Order SErialze");
+            }
         },
         /**
          * startOrderSerialize

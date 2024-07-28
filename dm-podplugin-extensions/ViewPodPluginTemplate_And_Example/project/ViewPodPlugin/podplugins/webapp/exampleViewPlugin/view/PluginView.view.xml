@@ -69,7 +69,7 @@
                             <Button id="SplitSfcid"  text="Split/Relabel" type="Emphasized" visible="true"  icon="sap-icon://popup-window" press=".onSplitSfc"  class="sapUiTinyMarginEnd"/>
                              <Button id="RelableSfcid"  text="Relabel" type="Emphasized" visible="true"  icon="sap-icon://popup-window" press=".onRelabelSfc"  class="sapUiTinyMarginEnd"/>
 
-                            <Button id="SignoffComp" text="Signoff" visible="true"  press=".onsignOffAllSfcsOrderOperation" class="sapUiTinyMarginEnd signoff-color"/>
+                            <Button id="SignoffComp" text="Signoff" type="Emphasized" visible="true"  press=".onsignOffAllSfcsOrderOperation"  icon="sap-icon://begin" class="sapUiTinyMarginEnd"/>
                             <Button id="TestFunctionx" text="AltSO" visible="false"  press=".onTestFunction" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="DisregardOrderId" text="Test Discard Order" visible="true"  press=".onOrderDiscard" class="sapUiTinyMarginEnd signoff-color"/>
                             <Button id="TestLaborOn" text="Test-LaborOn" visible="true"  press=".onTestLaborOn" class="sapUiTinyMarginEnd signoff-color"/>
