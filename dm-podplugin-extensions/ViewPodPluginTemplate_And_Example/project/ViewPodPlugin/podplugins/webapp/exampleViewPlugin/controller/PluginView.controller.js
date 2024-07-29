@@ -353,7 +353,7 @@ sap.ui.define([
          * Marker222
          * @param {*} thesfc the sfctofind all the details to create params for LaborOn PPD
          */
-        getSFCDetailsForLaborOnPPD: async function (thesfc,iOrder) {
+        getSFCDetailsForLaborOnPPD: async function (thesfc,iOrder,nopers) {
             var sfcplant = this.getPodController().getUserPlant();
             var userId=this.getPodController().getUserId();
              var worklistData = await this.getWorklistDataSelectedOrder(iOrder);
@@ -375,6 +375,9 @@ sap.ui.define([
              }catch (oError){
                 throw oError;
              }
+             //var iNoO=
+             //marker 723
+
 
              
 
@@ -384,7 +387,7 @@ sap.ui.define([
                 "inResource": thefirststep.resource,
                 "inRouting": thefirststep.stepRouting.routing,
                 "inRoutingType": thefirststep.stepRouting.type,
-                "inNumberOfOperators": 3,
+                "inNumberOfOperators": nopers,
                 "inRoutingVersion": thefirststep.stepRouting.version,
                 "inSfc": thesfc,
                 "inOrder": iOrder,
@@ -755,11 +758,35 @@ sap.ui.define([
            
         },
 
-            /**
+         
+        
+        onTesNClog: async function (){
+                //check if selection
+                if (!this.bCheckSelectionModel()) {
+                    this.showErrorMessage("Nothing selected to log NC");
+                    return;
+                }
+
+                try {
+                    var selection = this.getPodSelectionModel().getSelections();
+                    
+                    var thesfc = selection[0].getSfc().getSfc();
+                    var theresource = this.getPodSelectionModel().getResource().getResource();
+                    var sfcarr = [];
+                    sfcarr[0] = thesfc;
+                    let theplant=this.getPodController().getUserPlant();
+                    let res= await this.logNonConformanceAPI(sfcarr,theplant,theresource);
+
+                }catch(oError){
+                    this.showErrorMessage("logNC failed");
+
+                }           
+                // Marker2024
+            },
+
+             /**
              * getSfcsInWork
              */
-        
-
         getSfcsInWork: async function () {
 
             try {
@@ -1671,7 +1698,7 @@ sap.ui.define([
             let retv = await this.startOrderSerialize();
             await this._setAreaMessage("Start Order Split ended.");
             }catch (oError ){
-                console.log("Error start Order SErialze");
+                console.log("Error start Order Serialze");
             }
         },
         /**
@@ -1756,37 +1783,52 @@ sap.ui.define([
             let bLaborOn = this.getView().getModel().getProperty("/labor");
             if (bLaborOn) {
                 var iOrder = this.getView().getModel().getProperty("/orderselect");
-                var ppdParams = await this.getSFCDetailsForLaborOnPPD(thesfc,iOrder);
-                 
-                this.laborOnDialog().then(async inputValue => {
-                    console.log('Dialog input value:', inputValue);
+              
+
+                //marker333
+                //this.laborOnDialog().then(async inputValue => {
+                //console.log('Dialog input value:', inputValue);
+                try {
+                    var noopsx = await this.laborOnDialog();
+                    console.log(noopsx);
+
+
                     var noops = this.getView().getModel().getProperty("/numberOfOperators");
-                    // call laborOn API.
-                    try {
-                         //var reslabor = await this.laborOn(ppdParams , noops);
-                            var reslabor = await this.callAPPD(ppdParams,noops);
-                        if (reslabor) {
-                            this.showSuccessMessage("LaborOn start executed!", true);
-                        } else {
-                            this.showErrorMessage("labor did not execute", true);
+                    if (noops !== -1) {
+                        // call laborOn API.
+                        try {
+                            //var reslabor = await this.laborOn(ppdParams , noops);
+                              //get the params for the PPD call
+                            var ppdParams = await this.getSFCDetailsForLaborOnPPD(thesfc, iOrder,noops);
+                            var reslabor = await this.callAPPD(ppdParams, noops);
+                            if (reslabor) {
+                                this.showSuccessMessage("LaborOn start executed!", true);
+                                this._setAreaMessage("Direct LaborOnstart executed");
+                            } else {
+                                this.showErrorMessage("labor did not execute", true);
 
+                            }
+                        } catch (oError) {
+
+                            console.log("error in laborOn");
+                            oLogger.info("Error in laborOn 1619");
+                            this.showErrorMessage("Labor On start failure");
+                            //throw oError;
                         }
-                    } catch (oError) {
-
-                        console.log("error in laborOn");
-                        oLogger.info("Error in laborOn 1619");
-                        this.showErrorMessage("Labor On start failure");
-                        //throw oError;
+                    }else {
+                        this.showErrorMessage("Skipping LaborOn start",true);
                     }
-                }).catch(error => {
-                    console.error('Dialog error:', error);
-                });
+                } catch (oError) {
+                    this.showErrorMessage(`Error getting Number of Operators ${oError}`);
+
+                }
+
             } // end if labor on
 
             //do the serialize
             var cQuantity = parseInt(theQuantity);
-            cQuantity = cQuantity - 1;
-            if (cQuantity === 1) {
+            //cQuantity = cQuantity - 1;
+            if (cQuantity == 1) {
                 //nothing to do 
                 return;
             }
@@ -1816,9 +1858,17 @@ sap.ui.define([
 
         },
 
+        /**
+         * laborOnDialog
+         * @returns 
+         */
+
         laborOnDialog: async function () {
 
             var that = this; // Store reference to outer this
+            //set the default as -1 , it will get the right value after the dialog is executed
+            // if escape is hit it will stay as -1.
+            that.getView().getModel().setProperty("/numberOfOperators", -1);
             return new Promise((resolve, reject) => {
                 var oDialog = new sap.m.Dialog({
                     title: "Labor On Details",
@@ -1849,10 +1899,15 @@ sap.ui.define([
                                 reject('Dialog cancelled');
                             }
                         })
-                    ]
+                    ],
+                    afterClose: function() {
+                        that.getView().getModel().setProperty("/numberOfOperators", -1);
+                        oDialog.destroy();
+                    }
                 });
 
                 oDialog.open();
+
             });
         },
 
@@ -2257,7 +2312,7 @@ sap.ui.define([
             //check if we only have one sfc in the returned list 
 
             if (iSfcsToMerge.length <= 1) {
-                this.errorMessage("Not enough SFCs to Merge must have more than 1");
+                this.showErrorMessage("Not enough SFCs to Merge must have more than 1");
                 return;
             }
 
@@ -2308,10 +2363,12 @@ sap.ui.define([
         logNonConformanceAPI: async function (sfcArr, iPlant) {
             var sUrl = this.getPublicApiRestDataSourceUri() + "/nonconformance/v1/log";
             var sfcplant = this.getPodController().getUserPlant();
+            var sfcResource = this.getPodSelectionModel().getResource().getResource();
 
             var ssfcParameters = {
                 code: "SFC_DONE",
                 plant: sfcplant,
+                resource:sfcResource,
                 sfcs: sfcArr,
 
             };
@@ -3124,7 +3181,7 @@ sap.ui.define([
             //TODO check to see if components for this set of sfcs , operation , resource ,plant 
             // are already validated - bypass validation if true and go straight to complete.
             // if the validation has failed then either redo the validation or do not complete and exit.
-
+            if (0){
 
             oValidationButton.setBusy(true);
             try {
@@ -3157,6 +3214,7 @@ sap.ui.define([
             // the validation
             if (vetted.length !== 0) {
                 var componetsModel = this.ComponentAPISucsess(theComponents, vetted);
+                this.delay(1000);
 
                 try {
                     var theDialog = await this.openValidateDialog();
@@ -3185,7 +3243,15 @@ sap.ui.define([
             else {
                 this.resetButtonsWrkfl();
             }
+        }//if 0
+        try {
+            var res = await this.validateComponentsEnhanced();
+            console.log(res);
 
+        }catch (oError){
+            console.log("Error in validation --1121");
+
+        }
             oCompleteButton.setBusy(true);
             //****** Validation  ends here ******************************
 
@@ -3524,6 +3590,7 @@ sap.ui.define([
             }
             if (vetted.length !== 0) {
                 var componetsModel = this.ComponentAPISucsess(theComponents, vetted);
+               
 
                 try {
                     var theDialog = await this.openValidateDialog();
@@ -3879,7 +3946,7 @@ sap.ui.define([
          * Marker500
          */
 
-        onValidateComponent: function () {
+        F: function () {
             var oTable = this.byId("Vcomp");
             var oInput = this.byId("componentInput");
             var sValue = oInput.getValue();
