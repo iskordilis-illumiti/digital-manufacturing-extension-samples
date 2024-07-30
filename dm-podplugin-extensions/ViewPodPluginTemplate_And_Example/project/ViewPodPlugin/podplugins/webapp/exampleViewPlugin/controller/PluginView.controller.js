@@ -1687,9 +1687,7 @@ sap.ui.define([
             tevt.getSource().setBusy(false);
         },
 
-        onEnterPressed(evt) {
-            this.onValidateComponent();
-        },
+       
 
         onStartOrderSerialize: async function () {
             try {
@@ -2806,206 +2804,7 @@ sap.ui.define([
 
         },
 
-        /**
-         * onStartOrderEnhanced
-         * 
-         * @param {*} evt 
-         * @returns 
-         */
-
-        onStartOrderEnhanced: async function (evt) {
-            if (!this.bCheckSelectionModel()) {
-                this.showErrorMessage("No Order is selected");
-                return;
-            }
-            try {
-                // var eOrder = this.getView().byId("OrderValueLabel").getText();
-                var eOrder = this.getView().getModel().getProperty("/orderselect");
-                var res = await this.StartOrderEnhanced(eOrder, evt);
-            } catch (error) {
-                var msg = (!error) ? "onStartOrderEnhanced" : error.message;
-                this.showErrorMessage("An Error was detected: " + msg);
-                this.resetButtonsWrkfl();
-            }
-        },
-        /**
-         * StartOrderEnhanced
-         * @param {*} eOrder 
-         * @param {*} tevt ?
-         * @returns 
-         */
-        StartOrderEnhanced: async function (eOrder, tevt) {
-
-            if (!eOrder) {
-                this.showErrorMessage("Order Not selected");
-                return;
-            }
-            var oValidationButton = this.getView().byId("ValidateCompType");
-            var oStartOrderButton = this.getView().byId("OrderStartType");
-            var oCompleteButton = this.getView().byId("CompletComp");
-            //var sfcUrl =this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/start?async=false";
-            var sfcplant = this.getPodController().getUserPlant();
-            var sfcOperation = this._getWorkListSelectedOperationGlb(); //gloal ch..ch..
-            var sfcResource = this.getView().getModel().getProperty("/resource");
-            //var sfcResource = this.getPodSelectionModel().getResource().getResource();
-            var oconfig = this.getConfiguration();
-            console.log(oconfig);
-
-            /********************* Check PRT ****************************/
-            var prtval = await this.prtLoadingValidation();
-            //make sure that prtval is valid and accomodate a prt api failure
-            // check for undefined
-            if (!prtval || prtval.validationResult !== "PRT_PASSED") {
-                this.showErrorMessage("Tool validation failed , StartOrder will not continue");
-                return;
-            }
-
-            oLogger.info("retuls of prtLoadingValidation is: " + prtval.validationResult);
-            /********************* End Check PRT*** *********************/
-            oStartOrderButton.setBusy(true);
-
-
-            //Get all the sfcs in the order
-            try {
-                var allSfcs = await this.getAllSfcsInOrder(eOrder);
-            } catch (error) {
-                this.showErrorMessage("failed to get Sfc's for the Order: " + eOrder, true, true);
-                this.resetButtonsWrkfl();
-            }
-            oLogger.info("sfcs found in Order  " + allSfcs.length);
-
-            /**************************** Filter for only startable sfcs */
-            try {
-                var sfcstostart = await this.filterStartableSFCs(allSfcs);
-
-                // 
-            } catch (error) {
-                this.showErrorMessage("An error was detected: StartOrderEnhanced ", true);
-                this.resetButtonsWrkfl();
-            }
-            oLogger.info("startablesfcs size  " + sfcstostart.length);
-            var vlength = sfcstostart.length;
-            // if vlength === 0 the API call to start will be bypassed
-            //Start the loop going through all the chunck of sfcs
-            var sfcstocomplete = [];
-            var sfcstocompletelength = 0;
-            if (!vlength === 0) {
-                // Assume that the sfc's will be started
-                // so the completesfc will take the value of sfctostart
-                // which after the start will have status of ACTIVE
-                sfcstocomplete = sfcstostart;
-            } else {
-                //TODO this will fail if sfcs are have status on HOLD etc
-                sfcstocomplete = allSfcs;
-                sfcstocompletelength = allSfcs.length;
-            }
-            //bypass this loop if VALIDATE or COMPLETE
-            /**go through a loop with step SFCS_CHUNK to start all sfcs */
-            oStartOrderButton.setBusy(true);
-            for (let i = 0; i < vlength; i += SFCS_CHUNK) {
-
-
-                let startSFCChunk = sfcstostart.slice(i, i + SFCS_CHUNK);
-
-                /** API Call to start all SFCS************** *********/
-
-                var chunckStartd = await this.startAllSfcs(
-                    sfcOperation,
-                    sfcplant,
-                    sfcResource,
-                    startSFCChunk
-                );
-
-                var isfail = (typeof chunckStartd === 'undefined') ? true : false;
-
-                this.showErrorMessage((typeof chunckStartd === 'undefined'), true);
-                if (isfail) {
-                    oStartOrderButton.setBusy(false);
-                }
-                //delay for 1s give the gateway chance to cope
-                var waitfor = await this.delay(1000);
-            }
-            /****************** End of  LOOP to startall sfcs ***********/
-            oStartOrderButton.setBusy(false);
-
-            if (oconfig.executeStartOrderOnlyVisible) {
-                return;
-            }
-            //************* Validation starts here ********************
-
-            oValidationButton.setBusy(true);
-            try {
-                var theComponents = await this.getComponentsForSfc();
-            } catch (error) {
-                this.showErrorMessage("An error was detected:getComponentsForSfc ", true);
-                this.resetButtonsWrkfl();
-            }
-
-            // tranform theComponents into single row array with just the component
-            var tranformedComponents = this.transformComponentData(theComponents);
-            //vet the components against the classificaton entry
-            var vetted = await this.vetComponentsToValidate(tranformedComponents);
-
-            if ((typeof vetted === 'undefined')) {
-                //This is wrong masking the problem but is only for debug purposes.
-                // also it might not be a problem and all components 
-                // were excluded in the Vetting with Classification filters.
-                vetted = "";
-                this.showErrorMessage("There are not components to Validate", true);
-            }
-            oLogger.info(" vetted= " + vetted);
-
-            //now create a table Model only with the vetted components
-            // and put it into the View Model
-            // in case is the vetted array is empty it means to bypass
-            // the validation
-            if (vetted.length !== 0) {
-                var componetsModel = this.ComponentAPISucsess(theComponents, vetted);
-
-                try {
-                    var theDialog = await this.openValidateDialog();
-                    console.log("theDialog=" + theDialog);
-                    oValidationButton.setBusy(false);
-                    if (theDialog !== COMPONENT_VALIDATION_SUCCESS) {
-                        //set a valid state first
-                        oValidationButton.setBusy(false);
-                        oCompleteButton.setBusy(false);
-                        oStartOrderButton.setBusy(false);
-                        return;
-                    }
-                } catch (error) {
-                    this.showErrorMessage("An error was detected: openValidateDialog() ", true);
-                    this.resetButtonsWrkfl();
-
-                }
-            } // if (vetted)
-            else {
-                this.resetButtonsWrkfl();
-            }
-            oCompleteButton.setBusy(true);
-            //****** Validation  ends here ******************************
-
-            //****** Complete starts here *******************************
-            //Now start the loop to complete all sfcs
-            for (let i = 0; i < sfcstocompletelength; i += SFCS_CHUNK) {
-
-                try {
-                    let startSFCChunk = sfcstocomplete.slice(i, i + SFCS_CHUNK);
-                    var bcompleted = await this.completeOrderSfcs(startSFCChunk);
-                    //TODO check bcompleted for validity or undefined
-
-                    oLogger.info("value of complete promise return:" + bcompleted);
-                } catch (error) {
-                    this.showErrorMessage("Error in completeOrderSfcs:", true);
-                }
-
-            } //enfor complete
-            // reset all buttons to setbusy false
-            oCompleteButton.setBusy(false);
-            oValidationButton.setBusy(false);
-            oStartOrderButton.setBusy(false);
-            // ****************** Complete ends here ********************
-        }, //*************** stertOrderEn ends here *********************
+     
 
 
         /**
@@ -3128,6 +2927,23 @@ sap.ui.define([
                 sfcstocomplete = sfcsReadyToStart;
                 sfcstocompletelength = allSfcs.length;
             }
+            if (oconfig.executefullFlowVisible) {
+                //validate the components before the start 
+                // start sends an event which in effect it 
+                // causes issues with validation by reseting the model because
+                // it sends a worklistSelection changed event 
+                // this could be configured I think ?
+                
+                try {
+                    var retVal= await this.validateComponentsEnhanced();
+
+                } catch(oError){
+                    console.log("Error in validateComponentsEnhanced!");
+                   
+                }
+            }
+
+
             //bypass this loop if VALIDATE or COMPLETE
             /**go through a loop with step SFCS_CHUNK to start all sfcs */
             oStartOrderButton.setBusy(true);
@@ -3150,13 +2966,7 @@ sap.ui.define([
                     throw error;
                 }
 
-                //var isfail = (typeof chunckStartd ==='undefined')? true: false;
-
-                //this.showErrorMessage((typeof chunckStartd === 'undefined'),true);
-                //if (isfail){
-                //   oStartOrderButton.setBusy(false);
-                //}
-                //delay for 1s give the gateway chance to cope
+                //delay for 1s to give the gateway chance to cope
 
                 if (vlength > SFCS_CHUNK) {
                     // only if we have multiple CHUNKS
@@ -3167,7 +2977,7 @@ sap.ui.define([
 
 
             } //for loop
-            this.showErrorMessage("Order Started ", true);
+            this.showSuccessMessage("Order Started ", true);
             /****************** End of  LOOP to startall sfcs ***********/
             //this.showErrorMessage("Order Started",true);
             oStartOrderButton.setBusy(false);
@@ -3181,6 +2991,7 @@ sap.ui.define([
             //TODO check to see if components for this set of sfcs , operation , resource ,plant 
             // are already validated - bypass validation if true and go straight to complete.
             // if the validation has failed then either redo the validation or do not complete and exit.
+            // moved validation before start
             if (0){
 
             oValidationButton.setBusy(true);
@@ -3244,14 +3055,7 @@ sap.ui.define([
                 this.resetButtonsWrkfl();
             }
         }//if 0
-        try {
-            var res = await this.validateComponentsEnhanced();
-            console.log(res);
-
-        }catch (oError){
-            console.log("Error in validation --1121");
-
-        }
+       
             oCompleteButton.setBusy(true);
             //****** Validation  ends here ******************************
 
@@ -3720,7 +3524,12 @@ sap.ui.define([
                 this.showErrorMessage("Order must be provided");
                 return;
             }
-            tevt.getSource().setBusy(true);
+            if (tevt){
+                  tevt.getSource().setBusy(true);
+            } else {
+                var oDoneButton = this.getView().byId("SfcDoneId");
+
+            }
             // Marker5000
             //TODO do we need to call getAllSfcsInOrder all the time?
             // see if we can get it from the model 
@@ -3877,6 +3686,11 @@ sap.ui.define([
             var ivettedlength = vettedComponents.length;
 
             for (let i = 0; i < result.length; i++) {
+                //check to see if we have any more components in the arrworking
+                // get out of the loop if no more components
+                if (arrWorking.length ===0){
+                    break;
+                }
                 //check first if the component if is vetted
                 //if not skip it.
                 var rowColumn0 = result[i].component;
@@ -3884,11 +3698,12 @@ sap.ui.define([
                 
                  
                 if (arrWorking.includes(rowColumn0)) {
-                    //move to the next component in the vettedComponents
+                    
+                    // by removing the item from the arrWorking
+                    // it will not be checked again 
                         arrWorking=arrWorking.filter(element => element !==rowColumn0);
-                        if (arrWorking.length ===0){
-                            break;
-                        }
+                        
+                     
 
                     //push with masked with asterics apart from the first 4 chars
                     let unmasked = result[i].component;
@@ -3917,10 +3732,6 @@ sap.ui.define([
         },
 
 
-        startAllSfcsWorkflow: async function (order) {
-            oLogger.info("start all sfcsworkflow clicked");
-        },
-
 
         /**
          * resetButtonsWrkfl 
@@ -3940,13 +3751,63 @@ sap.ui.define([
             //oLabelStatus.setText("Process status ..idle");
         },
 
-        /**
+
+        /***
+         * 
+         * openValidateDialog
+         *   name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation",
+         *  name: "llumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidationStaticHeader"
+         */
+
+        openValidateDialog: async function () {
+            return new Promise((resolve, reject) => {
+                this._oResolve = resolve;
+                if (!this._oDialog) {
+                    this.loadFragment({
+
+                        name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation",
+                        controller: this
+                    }).then(function (oDialog) {
+                        this._oDialog = oDialog;
+                        this.getView().addDependent(this._oDialog);
+                        //handle the user hitting escape
+                        this._oDialog.setEscapeHandler(function (oPromiseResolution) {
+                            console.log("Escape key was pressed");
+                            this._oDialog.close();
+                            this._oDialog.destroy();
+                            this._oDialog = null;
+                            oPromiseResolution.resolve();
+                            resolve(-1); // Resolve the Promise with -1 if the dialog was closed with the Escape key
+                        }.bind(this));
+
+                        this._oDialog.attachAfterClose(null, function (oEvent) {
+                            if (/*oEvent.getParameter("origin") === sap.ui.core.CloseCallOrigin.Escape*/ false) {
+                                resolve(-1); // Resolve the Promise with -1 if the dialog was closed with the Escape key
+                            } else {
+                                resolve("result"); // Resolve the Promise with the stored value otherwise
+                            }
+                        }, this);
+                        this._oDialog.open();
+                    }.bind(this)).catch(function (oError) {
+                        reject(oError); // Reject the Promise if there's an error
+                    });
+                } else {
+                    this._oDialog.open();
+                }
+            });
+        },
+
+        onEnterPressed(evt) {
+            this.onValidateComponent();
+        },
+
+         /**
          * onValidateComponent
          * 
          * Marker500
          */
 
-        F: function () {
+         onValidateComponent: function () {
             var oTable = this.byId("Vcomp");
             var oInput = this.byId("componentInput");
             var sValue = oInput.getValue();
@@ -4018,55 +3879,11 @@ sap.ui.define([
             }
         },
 
-        /***
-         * 
-         * openValidateDialog
-         *   name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation",
-         *  name: "llumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidationStaticHeader"
-         */
-
-        openValidateDialog: async function () {
-            return new Promise((resolve, reject) => {
-                this._oResolve = resolve;
-                if (!this._oDialog) {
-                    this.loadFragment({
-
-                        name: "illumiti.ext.viewplugins.exampleViewPlugin.view.ComponentValidation",
-                        controller: this
-                    }).then(function (oDialog) {
-                        this._oDialog = oDialog;
-                        this.getView().addDependent(this._oDialog);
-                        //handle the user hitting escape
-                        this._oDialog.setEscapeHandler(function (oPromiseResolution) {
-                            console.log("Escape key was pressed");
-                            this._oDialog.close();
-                            this._oDialog.destroy();
-                            this._oDialog = null;
-                            oPromiseResolution.resolve();
-                            resolve(-1); // Resolve the Promise with -1 if the dialog was closed with the Escape key
-                        }.bind(this));
-
-                        this._oDialog.attachAfterClose(null, function (oEvent) {
-                            if (/*oEvent.getParameter("origin") === sap.ui.core.CloseCallOrigin.Escape*/ false) {
-                                resolve(-1); // Resolve the Promise with -1 if the dialog was closed with the Escape key
-                            } else {
-                                resolve("result"); // Resolve the Promise with the stored value otherwise
-                            }
-                        }, this);
-                        this._oDialog.open();
-                    }.bind(this)).catch(function (oError) {
-                        reject(oError); // Reject the Promise if there's an error
-                    });
-                } else {
-                    this._oDialog.open();
-                }
-            });
-        },
-
         /**
          * onValDEscape
          */
         onValDEscape: function (e) {
+
             e.resolve(-1);
             var oValidationButton = this.getView().byId("ValidateCompType");
             oValidationButton.setBusy(false);
@@ -4148,7 +3965,7 @@ sap.ui.define([
             //check for validation has happened
             let valdone = this.getView().getModel().getProperty("/validationDone");
             if (valdone === false) {
-                this.showErrorMessage("No validation  Done ");
+                this.showErrorMessage("No validation  Done : Complete will exit",true);
                 return;
 
             }
