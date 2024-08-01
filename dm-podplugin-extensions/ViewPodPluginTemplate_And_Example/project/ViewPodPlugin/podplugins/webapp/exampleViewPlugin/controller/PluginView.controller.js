@@ -1112,13 +1112,12 @@ sap.ui.define([
 
                         oLogger.info("oError.error.message is= ",errval);
                        
-                        that.showErrorMessage(`Error detected in Start Order:  + ${errval}`,true);
+                        that.showErrorMessage(`Error detected in Start Order/Split:  + ${errval}`,true);
                         reject(errval);
                     });
             });
         }catch (oError){
             throw oError;
-
         }
         return oResponseData;
 
@@ -1775,7 +1774,11 @@ sap.ui.define([
 
 
             var sSfcs = [thesfc];
+            try {
             var startRes = await this.startAllSfcs(iOperation, iPlant, iResource, sSfcs);
+            } catch( oError){
+                throw oError;
+            }
 
             //Marker565
             let bLaborOn = this.getView().getModel().getProperty("/labor");
@@ -2125,6 +2128,49 @@ sap.ui.define([
             }
 
         },
+
+        mergeSfcsQuickAPI: async function (iParentSfc,iSourceSfc) {
+            var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/merge?async=false";
+            var sfcplant = this.getPodController().getUserPlant();
+
+            var ssfcParameters = {
+                plant: sfcplant,
+                parentSfc: iParentSfc,
+                sourceSfcs: iSourceSfc,
+                mergeAcrossOperations: false,
+                copyWorkInstructionData: false,
+                copyComponentTraceabilityData: false,
+                copyNonConformanceData: false,
+                copyBuyoffData: false,
+                copyDataCollectionData: false,
+                copyActivityLogData: false
+
+            };
+            var that = this;
+            try {
+
+                var oResponseData = await new Promise((resolve, reject) => {
+                    this.ajaxPostRequest(
+                        sUrl,
+                        ssfcParameters,
+                        function (oResponseData) {
+                            resolve(oResponseData);
+                        },
+                        function (oError, sHttpErrorMessage) {
+                            let theError=oError || sHttpErrorMessage;
+                            reject(theError);
+
+                        });
+                });
+                return oResponseData;
+            } catch (oError) {
+
+                oLogger.info("oError.error.message is= ",oError);
+                throw oError;
+
+            }
+        },
+
         /**
          * mergeSfcsAPI
          * @param {parent sfc } iParentSfc 
