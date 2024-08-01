@@ -1020,8 +1020,11 @@ sap.ui.define([
             //check for validation has happened
             let valdone = this.getView().getModel().getProperty("/validationDone");
             if (valdone === false) {
-                this.showErrorMessage("No validation  Done ");
-                return 0;
+                //now check if the FullFlowisOn , if it is not then we need to exit 
+                // since the validation is not done.
+
+                this.showErrorMessage("No validation  Done: will complete without validation",true);
+               // return 0;
 
             }
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
@@ -1912,6 +1915,58 @@ sap.ui.define([
             });
         },
 
+        laborOnDialogAlt: async function () {
+            var that = this; // Store reference to outer this
+            // Set the default as -1, it will get the right value after the dialog is executed
+            // If escape is hit it will stay as -1.
+            that.getView().getModel().setProperty("/numberOfOperators", -1);
+            return new Promise((resolve, reject) => {
+                var oDialog = new sap.m.Dialog({
+                    title: "Labor On Details",
+                    content: [
+                        new sap.m.Label({ text: "Total Number of Operators" }),
+                        new sap.m.StepInput({
+                            min: 1,
+                            max: 10,
+                            step: 1,
+                            value: 1,
+                            id: that.createId("stepInputControl") // Use createId to avoid duplicate IDs
+                        })
+                    ],
+                    buttons: [
+                        new sap.m.Button({
+                            text: "OK",
+                            type: "Emphasized",
+                            press: function () {
+                                var inputValue = that.byId("stepInputControl").getValue(); // Use byId to get the control
+                                that.getView().getModel().setProperty("/numberOfOperators", inputValue); // Use that instead of this
+                                oDialog.close();
+                                oDialog.destroy();
+                                console.log("Input Value: ", inputValue);
+                                resolve(inputValue);
+                            }
+                        }),
+                        new sap.m.Button({
+                            text: "Cancel",
+                            press: function () {
+                                oDialog.close();
+                                oDialog.destroy();
+                                console.log("Input Value: ", -1);
+                                that.getView().getModel().setProperty("/numberOfOperators", -1); // Use that instead of this
+                                reject('Dialog cancelled');
+                            }
+                        })
+                    ],
+                    afterClose: function() {
+                        that.getView().getModel().setProperty("/numberOfOperators", -1);
+                        oDialog.destroy();
+                    }
+                });
+        
+                oDialog.open();
+            });
+        },
+
 
 
         /**
@@ -2362,7 +2417,7 @@ sap.ui.define([
                     let thesfcexcluded = iSfcsToMerge.filter(item => item !== thesfc);
                     //if already (propably merged) skip the merge
                     if (thesfcexcluded.length !== 0) {
-                        var responseData = await this.mergeSfcsAPI(thesfc, thesfcexcluded);
+                        var responseData = await this.mergeSfcsQuickAPI(thesfc, thesfcexcluded);
 
                         this.showSuccessMessage("Merge Done",true);
                         // get the quantity again by geeting the lenth and adding on for thesfc (parent)
@@ -3066,9 +3121,9 @@ getCurrentDateTime: function() {
             /****************** End of  LOOP to startall sfcs ***********/
             //this.showErrorMessage("Order Started",true);
             oStartOrderButton.setBusy(false);
-
+            //Marker900
             if (!oconfig.executefullFlowVisible) {
-                //return the started SFC's
+                //exit if not validation is configured
                 return "NoValidation";
             }
             //************* Validation starts here ********************
@@ -4060,11 +4115,13 @@ getCurrentDateTime: function() {
             var oCompleteButton = this.getView().byId("CompletComp");
 
             //check for validation has happened
-            let valdone = this.getView().getModel().getProperty("/validationDone");
-            if (valdone === false) {
-                this.showErrorMessage("No validation  Done : Complete will exit",true);
-                return;
+            var oconfig= this.getConfiguration();
 
+            let valdone = this.getView().getModel().getProperty("/validationDone");
+            if (valdone === false && oconfig.executefullFlowVisible) {
+                this.showErrorMessage("No validation  Done and Full flow is on Exiting  Without Completing SFCS ",true);
+                return;
+              
             }
 
             oCompleteButton.setBusy(true);
@@ -4075,9 +4132,8 @@ getCurrentDateTime: function() {
             var sfcstocomplete = await this.filterActiveSFCS(allSfcs);
             var clength = sfcstocomplete.length;
             if (clength === 0) {
-                this.showErrorMessage("SFC Not Active");
+                this.showErrorMessage("Not Active Sfc found to complete");
                 this.resetButtonsWrkfl();
-
                 return;
             }
             //Unsure if the status is alredy true and calling again to set to true
@@ -4104,8 +4160,12 @@ getCurrentDateTime: function() {
         },
 
 
-        onCompleteOrderSfcs: function (evt) {
-            this.completeSfcs();
+        onCompleteOrderSfcs: async function (evt) {
+            try {
+             var res = await this.completeSfcs();
+            }catch (oError){
+                console.log ( `completeSfcs Error: ${oError}`);
+            }
         },
 
 
@@ -4168,7 +4228,7 @@ getCurrentDateTime: function() {
             var oPodSelectionModel = this.getPodSelectionModel();
             if (!oPodSelectionModel) {
                 oView.setModel(new JSONModel());
-                this._debugGlb("INFO: loadModel - 1091 Model globbered no selectionModel");
+                this._debugGlb("INFO: loadModel - 4171 Model globbered no selectionModel");
                 return;
             }
             //get the pod type in sPodType
