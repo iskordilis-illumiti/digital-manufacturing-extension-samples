@@ -237,7 +237,7 @@ sap.ui.define([
                 var param0 = m ? m : "info:";
                 oLogger.info(param0 + " : " + "  param:" + param);
             } catch (error) {
-                oLogger.info("Error which is (propably circular dependency ):");
+                oLogger.info("Error which is (propably circular dependency *):");
             } finally {
                 // the statement below gets the the full json model in
                 //javascript format.
@@ -659,7 +659,7 @@ sap.ui.define([
                     var oOrder = oModel.getProperty('/orderselect');
 
                     /**
-                     * SAMPLES 
+                     * SAMPLES of Creating the url
                      * var sUrl = that._oPluginController.getPublicApiRestDataSourceUri() + "/sfc/v1/worklist/orders?plant=" + that._getUserPlant();
                      *sUrl = sUrl + "&workCenter=" + sWorkCenter;
                      *    sUrl = sUrl + "&allSfcSteps=true&page.size=20&page.offset=" + iPageOffset;
@@ -2160,14 +2160,15 @@ sap.ui.define([
                             resolve(oResponseData);
                         },
                         function (oError, sHttpErrorMessage) {
-                            reject(oError);
+                            let theError=oError || sHttpErrorMessage;
+                            reject(theError);
 
                         });
                 });
                 return oResponseData;
             } catch (oError) {
 
-                oLogger.info("oError.error.message is= ", oError.message);
+                oLogger.info("oError.error.message is= ",oError);
                 throw oError;
 
             }
@@ -2210,6 +2211,9 @@ sap.ui.define([
                 var oWorkListData = await this.getWorklistDataSelectedOrder();
                 var thesfc = selection[0].getSfc().getSfc();
                 var theRouting = selection[0].sfcData.routing;
+                // this value will need to be refreshed if the sfc selected is part of split sfcs
+                // needs to be updated before the merge
+                var theQuantity = selection[0].sfcData.quantity;
 
 
             } catch (error) {
@@ -2298,10 +2302,7 @@ sap.ui.define([
             try {
                 var oWorkListData = await this.getWorklistDataSelectedOrder();
                 var tobeFilteredSFCs = oWorkListData[0].orderSfcs;
-
                 var iSfcsToMerge = await this.filterInQueueSFCsAlt(tobeFilteredSFCs, theRouting);
-
-
             } catch (oError) {
                 throw oError;
             }
@@ -2309,20 +2310,26 @@ sap.ui.define([
             //Merge SFCs 
             //check if we only have one sfc in the returned list 
 
-            if (iSfcsToMerge.length <= 1) {
-                this.showErrorMessage("Not enough SFCs to Merge must have more than 1");
-                return;
-            }
+            if (iSfcsToMerge.length > 1) {
+                try {
 
-            try {
+                    let thesfcexcluded = iSfcsToMerge.filter(item => item !== thesfc);
+                    //if already (propably merged) skip the merge
+                    if (thesfcexcluded.length !== 0) {
+                        var responseData = await this.mergeSfcsAPI(thesfc, thesfcexcluded);
 
+                        this.showSuccessMessage("Merge Done",true);
+                        // get the quantity again by geeting the lenth and adding on for thesfc (parent)
+                        theQuantity=thesfcexcluded.length + 1;
 
-                let thesfcexcluded = iSfcsToMerge.filter(item => item !== thesfc);
-                var responseData = await this.mergeSfcsAPI(thesfc, thesfcexcluded);
+                    }
+                } catch (oError) {
+                    this.showErrorMessage(`Merge failed with: ${oError.error}`, true);
+                    throw oError.error;
+                }
+            } else {
+                this.showErrorMessage("Not enough SFCs to Merge must have more than 1: skipping merge", true);
 
-            } catch (error) {
-                this.showErrorMessage("Merge failed ", true);
-                throw error;
             }
 
             //log Non Conformance from the resulting Merged SFC
@@ -2336,17 +2343,28 @@ sap.ui.define([
             try {
                 var sfcarr = [];
                 sfcarr[0] = thesfc;
-                var responseNc = await this.logNonConformanceAPI(sfcarr, sfcplant);
+                var responseNc = await this.logNonConformanceAPI(sfcarr, sfcplant, theQuantity);
+                this.showSuccessMessage("log Non conformance done !",true);
 
             } catch (error) {
+                this.showErrorMessage("logNon Conformance failed",true);
                 throw error;
             }
 
-            //disregard Order 
+            try {
+                var disp= await this.dispositionNCAPI ( sfcarr);
+                this.showSuccessMessage("Disposition Done!",true);
+
+            }catch(oError){
+                this.errorMessage("Disposition failed ",true);
+                throw oError;
+            }
+
+            //discard Order 
 
             try {
 
-                var dOrder = await this.disregardOrder();
+               // var dOrder = await this.discardOrder();
 
             } catch (oError) {
                 throw oError;
@@ -2358,7 +2376,7 @@ sap.ui.define([
         /**
          * logNonConformanceAPI
          */
-        logNonConformanceAPI: async function (sfcArr, iPlant) {
+        logNonConformanceAPI: async function (sfcArr, iPlant,iQuantity) {
             var sUrl = this.getPublicApiRestDataSourceUri() + "/nonconformance/v1/log";
             var sfcplant = this.getPodController().getUserPlant();
             var sfcResource = this.getPodSelectionModel().getResource().getResource();
@@ -2366,6 +2384,7 @@ sap.ui.define([
             var ssfcParameters = {
                 code: "SFC_DONE",
                 plant: sfcplant,
+                quantity:iQuantity,
                 resource:sfcResource,
                 sfcs: sfcArr,
 
@@ -2396,15 +2415,35 @@ sap.ui.define([
 
         },
 
+getCurrentDateTime: function() {
+    const date = new Date();
+    const offset = -date.getTimezoneOffset();
+    const sign = offset >= 0 ? '+' : '-';
+    const pad = (num) => String(num).padStart(2, '0');
 
-        dispositionNCAPI: async function () {
+    const formattedDate = date.getFullYear() +
+        '-' + pad(date.getMonth() + 1) +
+        '-' + pad(date.getDate()) +
+        'T' + pad(date.getHours()) +
+        ':' + pad(date.getMinutes()) +
+        ':' + pad(date.getSeconds()) +
+        sign + pad(Math.floor(Math.abs(offset) / 60)) +
+        ':' + pad(Math.abs(offset) % 60);
+
+    return formattedDate;
+},
+
+
+        dispositionNCAPI: async function (iSfc) {
 
             var sUrl = this.getPublicApiRestDataSourceUri() + "/nonconformance/v1/sfcs/disposition";
             var sfcplant = this.getPodController().getUserPlant();
 
             var ssfcParameters = {
+                dateTime: this.getCurrentDateTime(),
                 plant: sfcplant,
-                sfcs: []
+
+                sfcs: iSfc
 
 
             };
@@ -2477,8 +2516,8 @@ sap.ui.define([
                         function (oError, sHttpErrorMessage) {
 
                             oLogger.info("oError.error.message is= ", oError.message);
-                            oLogger.info("Errors - Disregard Order sHttpErrorMessage is =  " + sHttpErrorMessage);
-                            //that.showErrorMessage("Error detected in Disregard Order  API : " + oError.message);
+                            oLogger.info("Errors - Discard Order sHttpErrorMessage is =  " + sHttpErrorMessage);
+                            //that.showErrorMessage("Error detected in Discard Order  API : " + oError.message);
                             reject(oError);
                         });
                 });
@@ -3527,7 +3566,8 @@ sap.ui.define([
             if (tevt){
                   tevt.getSource().setBusy(true);
             } else {
-                var oDoneButton = this.getView().byId("SfcDoneId");
+                var oSignOffButton = this.getView().byId("SignoffComp");
+                oSignOffButton.setBusy(false);
 
             }
             // Marker5000
@@ -3554,7 +3594,12 @@ sap.ui.define([
 
             if ((typeof thesfcs === 'undefined') || thesfcs.length === 0) {
                 this.showErrorMessage("No Sfcs to signoff ", true);
-                tevt.getSource().setBusy(false);
+                if (tevt){
+                    tevt.getSource().setBusy(false);
+                } else {
+                    var oSignOffButton = this.getView().byId("SignoffComp");
+                        oSignOffButton.setBusy(false);
+                }
 
                 // we have nothing else to do
                 return;
@@ -3568,8 +3613,13 @@ sap.ui.define([
                 var signedoff = await this.signOffSfcs(partofthesfcs);
                 var waitfor = await this.delay(1000);
             }
-
+            if (tevt){
             tevt.getSource().setBusy(false);
+            } else {
+                var oSignOffButton = this.getView().byId("SignoffComp");
+                oSignOffButton.setBusy(false);
+
+            }
             this.showSuccessMessage("Signoff Completed.", true);
 
         },
@@ -3748,6 +3798,7 @@ sap.ui.define([
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
             oSignoffButton.setBusy(false);
+            this._setAreaMessage("Process status ..idle");
             //oLabelStatus.setText("Process status ..idle");
         },
 
@@ -3923,7 +3974,7 @@ sap.ui.define([
                         howManyMatched++;
 
                     } else {
-                        this.showErrorMessage("Validation failed click ok to abort");
+                        this.showErrorMessage("Validation failed click ok to abort ");
 
                         this.byId("dcomponentValidator").close();
                         return "vfail";

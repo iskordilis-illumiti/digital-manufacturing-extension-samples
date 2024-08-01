@@ -4,13 +4,13 @@
             <items>
                 <Toolbar style= "Standard">
                     <Label text="Enter or Scan Component" width="35%" />
-                    <Input id="componentInput" submit="onEnterPressed" width="35%" />
+                    <Input id="componentInput" submit="onEnterPressed" width="36%" />
                     <Button text="Validate" type="Emphasized" press="onValidateComponent" />
                     <Label text="                                                       " width="55%" id="msgcustid" />
                 </Toolbar>
                 <ScrollContainer height="400px" width="100%" vertical="true">
                     <content>
-                        <Table id="Vcomp" width="100%" items="{path: '/components'}">
+                        <Table id="Vcomp" width="100%" items="{path: '/components'}" sticky="ColumnHeaders">
                             <headerToolbar>
                                 <Toolbar visible="false">
                                     <!-- This is a placeholder to satisfy the Table control structure, but it's hidden -->
@@ -21,7 +21,7 @@
                                     <Text text="Components" />
                                 </Column>
                                 <Column>
-                                    <Text text="Description" />
+                                    <Text text="Description " />
                                 </Column>
                                 <Column>
                                     <Text text="Validated" />
