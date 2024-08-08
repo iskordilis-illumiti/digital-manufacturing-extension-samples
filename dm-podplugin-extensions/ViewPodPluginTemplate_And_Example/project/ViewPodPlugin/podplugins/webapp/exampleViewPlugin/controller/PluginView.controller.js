@@ -25,7 +25,7 @@ sap.ui.define([
     // become the object. Alternatively use this to create and object with this variables in the controller.
 
 
-    //current selection might contain more than 1 selection
+    //current selection might contain more than 1 selection*
     var wrklstcurrentsel = {};
 
     //current operation last selected
@@ -305,6 +305,10 @@ sap.ui.define([
          */
 
         callAPPD: async function (params,nopr) {
+            if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("No Selection is found");
+                return;
+            }
             var sfcplant = this.getPodController().getUserPlant();
             var iOperation = this.getView().getModel().getProperty("/operation");
             var iResource = this.getView().getModel().getProperty("/resource");
@@ -403,6 +407,25 @@ sap.ui.define([
              return laborOnPPDParams;          
 
         },
+        laborOnCallPPD: async function ( thesfc, iOrder){
+             //make sure there is a selection in the Worklist
+             if (!this.bCheckSelectionModel()) {
+                this.showErrorMessage("No Selection is found");
+                return;
+            }
+            
+            try {
+                var noopsx = await this.laborOnDialogAlt();
+                var ppdParams = await this.getSFCDetailsForLaborOnPPD(thesfc , iOrder, noopsx);
+                var reslabor = await this.callAPPD(ppdParams,noopsx);
+
+
+            }catch ( oError){
+                throw oError;
+            }
+
+        },
+
 
         /**
          * getUserDetails
@@ -1009,6 +1032,8 @@ sap.ui.define([
 
         /**
          * completeOrderSfcs 
+         * It does not check if validation is done this is the responsibility of the caller 
+         * if required.
          * @param {*} psfcs a list of sfcs to complete.
          * @returns 
          */
@@ -1017,16 +1042,7 @@ sap.ui.define([
                 this.showErrorMessage("Nothing selected to complete");
                 return;
             }
-            //check for validation has happened
-            let valdone = this.getView().getModel().getProperty("/validationDone");
-            if (valdone === false) {
-                //now check if the FullFlowisOn , if it is not then we need to exit 
-                // since the validation is not done.
-
-                this.showErrorMessage("No validation  Done: will complete without validation",true);
-               // return 0;
-
-            }
+        
             var sUrl = this.getPublicApiRestDataSourceUri() + "/sfc/v1/sfcs/complete?async=false";
             var sfcplant = this.getPodController().getUserPlant();
             var sfcOperation = this._getWorkListSelectedOperationGlb();
@@ -1793,7 +1809,7 @@ sap.ui.define([
                 //this.laborOnDialog().then(async inputValue => {
                 //console.log('Dialog input value:', inputValue);
                 try {
-                    var noopsx = await this.laborOnDialog();
+                    var noopsx = await this.laborOnDialogAlt();
                     console.log(noopsx);
 
 
@@ -1927,7 +1943,7 @@ sap.ui.define([
                         new sap.m.Label({ text: "Total Number of Operators" }),
                         new sap.m.StepInput({
                             min: 1,
-                            max: 10,
+                            max: 30,
                             step: 1,
                             value: 1,
                             id: that.createId("stepInputControl") // Use createId to avoid duplicate IDs
@@ -2342,7 +2358,7 @@ sap.ui.define([
             //ask for confirmation if the user really wants to discard the order
 
             try {
-                var choice = await this.OpenConfirmationDialog("Are you sure you want to discard the Order ?");
+                var choice = await this.OpenConfirmationDialog("Are you sure you want to mark SFCs Done ?");
                 if (!choice) {
                     return 0;  // or reject("aborted!")
                 }
@@ -2964,6 +2980,11 @@ getCurrentDateTime: function() {
                 this.showErrorMessage("Please make a single Selection Only");
                 return;
             }
+            //get the selected sfc 
+            var thesfc = selection[0].getSfc().getSfc();
+            //get the selected order 
+            var iOrder=this.getView().getModel().getProperty("/orderselect");
+
 
             var oValidationButton = this.getView().byId("ValidateCompType");
             var oStartOrderButton = this.getView().byId("OrderStartType");
@@ -3029,7 +3050,7 @@ getCurrentDateTime: function() {
             // get all Sfcs from the result of the getWorklistDataSelectedOrder;
             var bwfail = oWorkListData || false;
             if (!bwfail){
-                this.showErrorMessage("Data Error contact customer Support");
+                this.showErrorMessage("Data Error! 3032");
                 return;
             }
             var allSfcs = oWorkListData[0].orderSfcs;
@@ -3055,6 +3076,11 @@ getCurrentDateTime: function() {
                 this.showErrorMessage("All SFCs currently are Active for selected Order and cannot be started.");
                 return;
             }
+            //check to see if the selected sfc is actually in the list
+            // of startable sfcs if not the just make thesfc the first sfc in the list 
+            if (!sfcsReadyToStart.includes(thesfc)){
+                thesfc=sfcsReadyToStart[0];
+            }
             var sfcstocomplete = [];
             var sfcstocompletelength = 0;
             if (!vlength === 0) {
@@ -3078,7 +3104,12 @@ getCurrentDateTime: function() {
                     var retVal= await this.validateComponentsEnhanced();
 
                 } catch(oError){
-                    console.log("Error in validateComponentsEnhanced!");
+                    console.log("did not validate will not exit we want to continue with start");
+                    //just set the status of validation to false
+                    //Marker2500
+                    this.getView().getModel().setProperty("/validationDone", false);
+
+                    //return;
                    
                 }
             }
@@ -3121,7 +3152,22 @@ getCurrentDateTime: function() {
             /****************** End of  LOOP to startall sfcs ***********/
             //this.showErrorMessage("Order Started",true);
             oStartOrderButton.setBusy(false);
-            //Marker900
+            
+            //check if laborOn needed
+            let bLaborOn = this.getView().getModel().getProperty("/labor");
+            if (bLaborOn){
+
+                try {
+                    let laborS= await this.laborOnCallPPD(thesfc,iOrder);
+                 this.showSuccessMessage("Labor on executed!",true);
+                }
+                catch (oError){
+                    this.showErrorMessage("Labor on failed ",true);
+                }
+            }
+
+            
+            //check if No validation needed 
             if (!oconfig.executefullFlowVisible) {
                 //exit if not validation is configured
                 return "NoValidation";
@@ -3187,6 +3233,7 @@ getCurrentDateTime: function() {
                     }
                 } catch (error) {
                     this.showErrorMessage("An error was detected: openValidateDialog() ", true);
+                    //reset buttons and text area
                     this.resetButtonsWrkfl();
 
                 }
@@ -3196,6 +3243,11 @@ getCurrentDateTime: function() {
             }
         }//if 0
        
+        var valstatus =  this.getView().getModel().getProperty("/validationDone");
+        if (!valstatus){
+            //this.showErrorMessage("No validation and FullFlow is On Will not Compete!");
+            return;
+        }
             oCompleteButton.setBusy(true);
             //****** Validation  ends here ******************************
 
@@ -3886,7 +3938,8 @@ getCurrentDateTime: function() {
 
         /**
          * resetButtonsWrkfl 
-         * resets all buttons to active 
+         * resets all buttons to active and
+         * clears the Message Area
          */
         resetButtonsWrkfl: function () {
             var oValidationButton = this.getView().byId("ValidateCompType");
@@ -3899,7 +3952,7 @@ getCurrentDateTime: function() {
             oValidationButton.setBusy(false);
             oStartOrderButton.setBusy(false);
             oSignoffButton.setBusy(false);
-            this._setAreaMessage("Process status ..idle");
+            this._setAreaMessage("Lutron POD plugin status ... idle");
             //oLabelStatus.setText("Process status ..idle");
         },
 
@@ -4119,7 +4172,7 @@ getCurrentDateTime: function() {
 
             let valdone = this.getView().getModel().getProperty("/validationDone");
             if (valdone === false && oconfig.executefullFlowVisible) {
-                this.showErrorMessage("No validation  Done and Full flow is on Exiting  Without Completing SFCS ",true);
+                this.showErrorMessage("Components Not Validated.",true);
                 return;
               
             }

@@ -16,5 +16,24 @@
     color: red;
 }
 
+.customButton {
+    width: 150px;  /* Example width */
+    height: 40px;  /* Example height */
+    background-color: #4CAF50;  /* Example background color */
+    color: white;  /* Example text color */
+    border: none;  /* Remove border */
+    border-radius: 4px;  /* Rounded corners */
+    padding: 10px 20px;  /* Padding */
+    text-align: center;  /* Center text */
+    text-decoration: none;  /* Remove underline */
+    display: inline-block;  /* Inline-block display */
+    font-size: 16px;  /* Font size */
+    margin: 4px 2px;  /* Margin */
+    cursor: pointer;  /* Pointer cursor on hover */
+}
+
+.customButton:hover {
+    background-color: #45a049;  /* Darker background on hover */
+}
 
 

@@ -21,13 +21,13 @@
                                             <Text
                                                 id="text2"
                                                 wrappingType="Hyphenated"
-                                                text="Demonstrates a 'View' type plugin that displays current selection information in the POD during runtime.  This also demonstrates how to define and implement the necessary functions to subscribe to a custom notification event. This plugin also shows how to call public API to read material custom data." />
+                                                text="Demonstrates a 'View' type p to s" />
                                         </l:BlockLayoutCell>
-                                        <l:BlockLayoutCell title="View Plugin Template">
+                                        <l:BlockLayoutCell title="View Plugin Template for Lutron Includes Numerous calls to DM API and custom UI Components">
                                             <Text
                                                 id="text3"
                                                 wrappingType="Hyphenated"
-                                                text="View Plugin Template to start development with custom POD Plugin." />
+                                                text="Custom View Plugin for Lutron Template. Can be modified for other plugins." />
                                         </l:BlockLayoutCell>
                                     </l:BlockLayoutRow>
                                 </l:BlockLayout>
